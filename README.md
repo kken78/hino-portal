@@ -19,7 +19,7 @@ https://kken78.github.io/hino-portal/
 
 - `index.html` だけで動きます。外部の CSS・JavaScript・フォントは読み込みません。
 - 見出しと配色は計画ライブラリ（shiga-hino-plans の `templates/hub.html`）と同じです。
-- 他のダッシュボードへのリンクのうち、ヘッダーと共通のもの（トップ・計画・人口）は `index.html` 末尾の `SITES` で URL を管理しています。
+- 他のダッシュボードへのリンクのうち、ヘッダーと共通のもの（トップ・計画・予算・人口）は `index.html` 末尾の `SITES` で URL を管理しています。
 
 ダッシュボードを追加したときは、該当する分野の `<div class="cards">` にカードを1つ足し、この README の表にも1行足してください。
 

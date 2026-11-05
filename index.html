@@ -87,7 +87,7 @@ main{padding:36px 0 0}
 <a class="brand" href="https://kken78.github.io/hino-portal/" data-site="portal"><svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="14" width="24" height="4" rx="2" fill="#1E4E9C"/><rect x="4" y="8" width="18" height="4" rx="2" fill="#3B6FBF"/><rect x="8" y="2" width="10" height="4" rx="2" fill="#C33D2E"/></svg><h1>日野町データポータル</h1></a>
 <span class="badge-unofficial">非公式</span>
 <nav class="site-nav" aria-label="サイトメニュー">
-<a href="https://kken78.github.io/hino-portal/" data-site="portal" class="is-here" aria-current="page">トップ</a><a href="https://kken78.github.io/shiga-hino-plans/" data-site="plans">計画</a><a href="https://kken78.github.io/hino-population/" data-site="population">人口</a>
+<a href="https://kken78.github.io/hino-portal/" data-site="portal" class="is-here" aria-current="page">トップ</a><a href="https://kken78.github.io/shiga-hino-plans/" data-site="plans">計画</a><a href="https://kken78.github.io/hino-budget/" data-site="budget">予算</a><a href="https://kken78.github.io/hino-population/" data-site="population">人口</a>
 </nav>
 </div>
 </header>
@@ -121,7 +121,7 @@ main{padding:36px 0 0}
 <p>第6次日野町総合計画の施策ごとの指標と進み具合。</p>
 <span class="src">出典：第6次日野町総合計画と関連する公表資料</span>
 </a>
-<a class="card" href="https://kken78.github.io/hino-budget/">
+<a class="card" href="https://kken78.github.io/hino-budget/" data-site="budget">
 <h3>令和8年度 主な事業</h3>
 <p>当初予算の附表に載った事業の一覧。柱・款・担当課ごとの件数と金額。</p>
 <span class="src">出典：日野町『令和8年度当初予算の概要』附表</span>
@@ -200,6 +200,7 @@ main{padding:36px 0 0}
 const SITES = {
   portal: 'https://kken78.github.io/hino-portal/',
   plans: 'https://kken78.github.io/shiga-hino-plans/',
+  budget: 'https://kken78.github.io/hino-budget/',
   population: 'https://kken78.github.io/hino-population/'
 };
 document.querySelectorAll('[data-site]').forEach(function(a){
