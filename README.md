@@ -7,7 +7,7 @@ https://kken78.github.io/hino-portal/
 | 分野 | ダッシュボード | リポジトリ |
 |---|---|---|
 | 計画と予算 | 計画ライブラリ | [shiga-hino-plans](https://github.com/kken78/shiga-hino-plans) |
-| 計画と予算 | 第6次総合計画 進捗 | [hino-plan-dashboard](https://github.com/kken78/hino-plan-dashboard) |
+| 計画と予算 | 第6次総合計画 指標と事業費 | [hino-plan-dashboard](https://github.com/kken78/hino-plan-dashboard) |
 | 計画と予算 | 令和8年度 主な事業 | [hino-budget](https://github.com/kken78/hino-budget) |
 | 議会 | 議会だより・一般質問 | [council-dashboard](https://github.com/kken78/council-dashboard) |
 | 議会 | 会議録 横断検索 | [hino-council-search](https://github.com/kken78/hino-council-search) |
