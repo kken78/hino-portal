@@ -23,6 +23,15 @@ https://kken78.github.io/hino-portal/
 
 ダッシュボードを追加したときは、該当する分野の `<div class="cards">` にカードを1つ足し、この README の表にも1行足してください。
 
+## OGP 画像の作り直し方
+
+SNS で共有したときに出る画像は `og.png`（1200×630）です。編集元は `assets/og.svg` です。`tools/og_gen.py` は、ポータルと各ダッシュボードの計9本の OGP 画像の編集元を作るスクリプトで、各リポジトリの画像はここで作ったものを使っています。
+
+1. `tools/og_gen.py` の `SITES` の文言や数字を直す。
+2. `python3 tools/og_gen.py` を実行する。`tools/out/` にリポジトリ名ごとの svg が9本できる（`tools/out/` はリポジトリに含めない）。
+3. `tools/out/` の svg を、Noto Sans CJK JP を入れた環境で 1200×630 の PNG に書き出す。
+4. このリポジトリの分は `tools/out/hino-portal.svg` を `assets/og.svg` に、書き出した PNG を `og.png` に置き換える。他のリポジトリの分は、それぞれのリポジトリの og.svg と og.png を置き換える。
+
 ## ライセンス
 
 コードは MIT License です（[LICENSE](LICENSE)）。
