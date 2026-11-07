@@ -17,6 +17,7 @@ https://kken78.github.io/hino-portal/
 
 ## 構成
 
+- ポータルと各ダッシュボードに共通する決まり（ページの構造・色・グラフ・文字・文体など）は [DESIGN.md](DESIGN.md) に書いています。
 - `index.html` だけで動きます。外部の CSS・JavaScript・フォントは読み込みません。
 - 見出しと配色は計画ライブラリ（shiga-hino-plans の `templates/hub.html`）と同じです。
 - 他のダッシュボードへのリンクのうち、ヘッダーと共通のもの（トップ・計画・予算・人口）は `index.html` 末尾の `SITES` で URL を管理しています。
