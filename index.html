@@ -39,21 +39,9 @@ a{color:var(--ai)}
 :focus-visible{outline:3px solid var(--shu);outline-offset:2px;border-radius:4px}
 .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
 
-/* header（計画ライブラリと同じ） */
-.site-head{background:var(--card);border-bottom:1px solid var(--line)}
-.site-head .wrap{display:flex;align-items:center;gap:14px;padding-top:14px;padding-bottom:14px;flex-wrap:wrap}
-.brand{display:flex;align-items:baseline;gap:10px;text-decoration:none;color:var(--ai-ink)}
-.brand-mark{width:26px;height:26px;flex:none;align-self:center}
-.brand h1{font-family:var(--serif);font-size:var(--fs-md);letter-spacing:.04em}
-.badge-unofficial{font-size:var(--fs-2xs);font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 9px;letter-spacing:.08em}
-.site-nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
-.site-nav a{text-decoration:none;font-size:var(--fs-xs);font-weight:600;color:var(--muted);padding:6px 10px;border-radius:8px}
-.site-nav a:hover{background:var(--bg);color:var(--ai)}
-.site-nav a.is-here{color:var(--ai-ink);background:var(--bg)}
 
 /* hero */
 .hero{background:linear-gradient(135deg,var(--ai-ink) 0%,var(--ai-deep) 45%,var(--ai) 100%);color:#fff;padding:40px 0 44px}
-.hero .eyebrow{font-size:var(--fs-3xs);letter-spacing:.22em;opacity:.75;font-weight:700}
 .hero h2{font-family:var(--serif);font-size:var(--fs-h1);letter-spacing:.03em;margin:6px 0 8px}
 .hero p{opacity:.88;font-size:var(--fs-sm);max-width:46em}
 
@@ -61,7 +49,6 @@ a{color:var(--ai)}
 main{padding:36px 0 0}
 .group{display:grid;grid-template-columns:200px 1fr;gap:24px;padding:26px 0;border-top:1px solid var(--line)}
 .group:first-child{border-top:none;padding-top:0}
-.g-head .eyebrow{font-size:var(--fs-3xs);letter-spacing:.22em;color:var(--ai);font-weight:700}
 .g-head h2{font-family:var(--serif);font-size:var(--fs-h2);color:var(--ai-ink);letter-spacing:.03em;line-height:1.35}
 .g-head p{color:var(--muted);font-size:var(--fs-xs);margin-top:6px}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
@@ -73,33 +60,64 @@ main{padding:36px 0 0}
 .note{font-size:var(--fs-xs);color:var(--muted);margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
 .note b{color:var(--ai-ink)}
 
-/* footer（計画ライブラリと同じ） */
-.site-foot{margin-top:56px;background:var(--ai-ink);color:#C9D6EA;padding:36px 0 44px;font-size:var(--fs-2xs)}
-.site-foot a{color:#fff}
-.foot-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:30px}
-.site-foot h3{font-family:var(--serif);color:#fff;font-size:var(--fs-sm);margin-bottom:8px;letter-spacing:.04em}
-.foot-note{margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.15);font-size:var(--fs-2xs);opacity:.8}
 
 @media (max-width:820px){
   .group{grid-template-columns:1fr;gap:12px}
-  .foot-grid{grid-template-columns:1fr}
 }
 </style>
+<!-- portal-shared:css start --><style>
+/* 日野町データポータル 共通の部品（見出し・ナビ・ページの見出し・フッター）。
+   正本は hino-portal/shared/shell.css。各ページはこれを <style> に写し、CI で同じであることを確かめる（DESIGN.md 9.1）。
+   文字の大きさは 14px 以上（DESIGN.md 5.2）。色は 3章の藍と朱。書体は端末のもの（5.1）。 */
+:root{--portal-ai:#1E4E9C;--portal-ai-ink:#0C2547;--portal-shu:#C33D2E;--portal-bg:#EFF3F9;--portal-card:#FFFFFF;--portal-ink:#1A2333;--portal-muted:#5B6B85;--portal-line:#DCE4F0;--portal-foot-bg:#0C2547;--portal-foot-ink:#C9D6EA;--portal-fs:16px;--portal-fs-sub:14px;--portal-fs-h1:18px;--portal-fs-h2:24px;--portal-sp1:8px;--portal-sp2:16px;--portal-sp3:24px;--portal-sp4:40px;--portal-font:"Hiragino Sans","Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic Medium","Yu Gothic","Noto Sans CJK JP","Noto Sans JP",Meiryo,system-ui,sans-serif}
+.portal-wrap{max-width:1080px;margin:0 auto;padding:0 var(--portal-sp2);box-sizing:border-box}
+.portal-head,.portal-page,.portal-foot{font-family:var(--portal-font);font-size:var(--portal-fs);line-height:1.7;letter-spacing:.02em}
+.portal-head *,.portal-page *,.portal-foot *{box-sizing:border-box}
+.portal-head a:focus-visible,.portal-page a:focus-visible,.portal-foot a:focus-visible{outline:2px solid #000;box-shadow:0 0 0 4px #FFD43D;outline-offset:1px}
+/* 共通の見出し（2.2 の 1、2.3） */
+.portal-head{background:var(--portal-card);border-bottom:1px solid var(--portal-line);color:var(--portal-ink)}
+.portal-head .portal-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:var(--portal-sp1) var(--portal-sp3);padding-top:var(--portal-sp1);padding-bottom:var(--portal-sp1)}
+.portal-brand{display:flex;align-items:center;gap:var(--portal-sp1);text-decoration:none;color:var(--portal-ink)}
+.portal-brand svg{width:26px;height:26px;flex:none}
+.portal-brand .portal-name{font-size:var(--portal-fs-h1);margin:0;font-weight:700;line-height:1.3}
+.portal-brand .portal-tag{font-size:var(--portal-fs-sub);color:var(--portal-muted);border:1px solid var(--portal-line);border-radius:3px;padding:0 6px;line-height:1.6}
+.portal-areas{display:flex;gap:var(--portal-sp2);margin-left:auto}
+.portal-areas a{font-size:var(--portal-fs-sub);text-decoration:none;color:var(--portal-ai);padding:4px 0;border-bottom:2px solid transparent;white-space:nowrap}
+.portal-areas a:hover{text-decoration:underline}
+.portal-areas a[aria-current]{color:var(--portal-ink);border-bottom-color:var(--portal-shu);font-weight:700}
+@media (max-width:767px){.portal-areas{margin-left:0;width:100%;overflow-x:auto}}
+/* ページの見出し（2.2 の 2・3） */
+.portal-page{padding:var(--portal-sp3) 0 var(--portal-sp2);color:var(--portal-ink)}
+.portal-page .portal-area{font-size:var(--portal-fs-sub);color:var(--portal-muted);margin:0 0 4px}
+.portal-page .portal-title{font-size:var(--portal-fs-h2);margin:0 0 4px;line-height:1.35;font-weight:700}
+.portal-page .portal-lead{margin:0 0 4px}
+.portal-page .portal-asof{font-size:var(--portal-fs-sub);color:var(--portal-muted);margin:0}
+.portal-siblings{font-size:var(--portal-fs-sub);margin:var(--portal-sp2) 0 0;display:flex;flex-wrap:wrap;gap:4px 0}
+.portal-siblings span,.portal-siblings a{padding-right:var(--portal-sp2)}
+.portal-siblings a{color:var(--portal-ai)}
+.portal-siblings span[aria-current]{font-weight:700;color:var(--portal-ink)}
+.portal-siblings .portal-lbl{color:var(--portal-muted)}
+/* フッター（2.5） */
+.portal-foot{margin-top:var(--portal-sp4);background:var(--portal-foot-bg);color:var(--portal-foot-ink);padding:var(--portal-sp3) 0 var(--portal-sp4);font-size:var(--portal-fs-sub)}
+.portal-foot a{color:#fff}
+.portal-foot dl{margin:0;display:grid;grid-template-columns:10em 1fr;gap:var(--portal-sp1) var(--portal-sp2)}
+.portal-foot dt{color:#fff;font-weight:700;margin:0}
+.portal-foot dd{margin:0}
+.portal-foot p{margin:0 0 4px}
+.portal-foot ul{margin:0;padding-left:1.2em}
+@media (max-width:767px){.portal-foot dl{grid-template-columns:1fr;gap:4px}.portal-foot dt{margin-top:var(--portal-sp1)}}
+</style><!-- portal-shared:css end -->
 </head>
 <body>
-<header class="site-head">
-<div class="wrap">
-<a class="brand" href="https://kken78.github.io/hino-portal/" data-site="portal"><svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="14" width="24" height="4" rx="2" fill="#1E4E9C"/><rect x="4" y="8" width="18" height="4" rx="2" fill="#3B6FBF"/><rect x="8" y="2" width="10" height="4" rx="2" fill="#C33D2E"/></svg><h1>日野町データポータル</h1></a>
-<span class="badge-unofficial">非公式</span>
-<nav class="site-nav" aria-label="サイトメニュー">
-<a href="https://kken78.github.io/hino-portal/" data-site="portal" class="is-here" aria-current="page">トップ</a><a href="https://kken78.github.io/shiga-hino-plans/" data-site="plans">計画</a><a href="https://kken78.github.io/hino-budget/" data-site="budget">予算</a><a href="https://kken78.github.io/hino-population/" data-site="population">人口</a>
-</nav>
-</div>
-</header>
+<!-- portal-shared:header start -->
+<header class="portal-head"><div class="portal-wrap">
+<a class="portal-brand" href="https://kken78.github.io/hino-portal/"><svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="14" width="24" height="4" rx="2" fill="#1E4E9C"/><rect x="4" y="8" width="18" height="4" rx="2" fill="#3B6FBF"/><rect x="8" y="2" width="10" height="4" rx="2" fill="#C33D2E"/></svg><span class="portal-name">日野町データポータル</span><span class="portal-tag">非公式</span></a>
+<nav class="portal-areas" aria-label="分野"><a href="https://kken78.github.io/hino-portal/" aria-current="page">トップ</a><a href="https://kken78.github.io/hino-portal/#g-plan">計画と予算</a><a href="https://kken78.github.io/hino-portal/#g-stat">統計とくらし</a><a href="https://kken78.github.io/hino-portal/#g-council">議会</a></nav>
+</div></header>
+<!-- portal-shared:header end -->
 
 <div class="hero">
 <div class="wrap">
-<p class="eyebrow">HINO TOWN, SHIGA</p>
 <h2>日野町データポータル</h2>
 <p>滋賀県日野町のホームページで公開されている計画・議会の記録・統計を、分野ごとに見られるようにしたダッシュボードの一覧です。</p>
 </div>
@@ -110,7 +128,6 @@ main{padding:36px 0 0}
 
 <section class="group" aria-labelledby="g-plan">
 <div class="g-head">
-<p class="eyebrow">PLANS &amp; BUDGET</p>
 <h2 id="g-plan">計画と予算</h2>
 <p>町がどんな計画を持ち、今年度どんな事業に予算をつけたか。</p>
 </div>
@@ -138,7 +155,6 @@ main{padding:36px 0 0}
 
 <section class="group" aria-labelledby="g-council">
 <div class="g-head">
-<p class="eyebrow">COUNCIL</p>
 <h2 id="g-council">議会</h2>
 <p>議会で何が質問され、どう答えたか。</p>
 </div>
@@ -158,8 +174,7 @@ main{padding:36px 0 0}
 
 <section class="group" aria-labelledby="g-stat">
 <div class="g-head">
-<p class="eyebrow">STATISTICS</p>
-<h2 id="g-stat">統計・くらし</h2>
+<h2 id="g-stat">統計とくらし</h2>
 <p>人口や産業、交通の利用の数字。</p>
 </div>
 <div class="cards">
@@ -184,22 +199,16 @@ main{padding:36px 0 0}
 </div>
 </main>
 
-<footer class="site-foot">
-<div class="wrap">
-<div class="foot-grid">
-<div>
-<h3>このサイトについて</h3>
-<p>このサイトは、滋賀県日野町 政策参与の東健二郎が、個人として作成した試作です。日野町の公式のサイトではなく、町の見解を示すものでもありません。各ダッシュボードの数値や記載は、それぞれのページに示した出典から転記しています。</p>
-<p style="margin-top:8px">ソースコード・データ：<a href="https://github.com/kken78" target="_blank" rel="noopener">github.com/kken78</a></p>
-</div>
-<div>
-<h3>日野町の公式ページ</h3>
-<p><a href="https://www.town.shiga-hino.lg.jp/" target="_blank" rel="noopener">日野町ホームページ</a></p>
-</div>
-</div>
-<p class="foot-note">内容の正確性を保証するものではありません。最新・正確な情報は日野町の公式ページでご確認ください。</p>
-</div>
-</footer>
+<!-- portal-shared:footer start -->
+<footer class="portal-foot"><div class="portal-wrap">
+<dl>
+<dt>このページについて</dt><dd><p>このページは、滋賀県日野町 政策参与の東健二郎が、個人として作成した試作です。日野町の公式のサイトではなく、町の見解を示すものでもありません。</p><p>日野町のホームページで公開されている計画・議会の記録・統計から作ったページの入口です。数値や記載の出典は、それぞれのページに書いています。</p></dd>
+<dt>注意</dt><dd><p>内容の正確性を保証するものではありません。最新・正確な情報は日野町の公式ページでご確認ください。</p><p><a href="https://www.town.shiga-hino.lg.jp/">日野町ホームページ</a></p></dd>
+<dt>ソースコード</dt><dd><a href="https://github.com/kken78/hino-portal">kken78/hino-portal</a>（GitHub）。各ページのソースコードとデータは <a href="https://github.com/kken78">github.com/kken78</a> にあります。</dd>
+<dt>ライセンス</dt><dd>MIT License（ソースコード）。文章と画像の扱いは、整理してから書きます。</dd>
+</dl>
+</div></footer>
+<!-- portal-shared:footer end -->
 <script>
 'use strict';
 const SITES = {
