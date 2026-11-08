@@ -2,7 +2,7 @@
 """共通の部品が hino-portal/shared の正本と同じかと、文字の大きさを確かめる（DESIGN.md 9.1）。
 
 使い方：
-  python3 shared/check.py [--fonts] [--shared <正本のフォルダ>] <HTML ファイル>...
+  python3 shared/check.py [--no-shared] [--shared <正本のフォルダ>] <HTML ファイル>...
   python3 shared/check.py --selftest
   正本のフォルダを省くと、このファイルと同じフォルダを使う。
 
@@ -16,7 +16,7 @@
   6. <!-- portal-shared:footer start --> … end の中の <footer> に、footer.html の固定の部分がある：
      dt の並びが「このページについて・出典・資料の時点・注意・データ・ソースコード・ライセンス」の順（無い項目は飛ばしてよい）、
      「このページについて」の最初の文が位置づけの文、「注意」の最初の文が固定の文
-  7. 文字の大きさ（--fonts を付けたときだけ。DESIGN.md 5.2・9.1。決定 2026-11-08 段階3）。範囲は shiga-hino-plans の validate.mjs の文字の規則（7）（8）を写した：
+  7. 文字の大きさ（DESIGN.md 5.2・9.1。決定 2026-11-08 段階3）。範囲は shiga-hino-plans の validate.mjs の文字の規則（7）（8）を写した：
      - <style> の font-size: の宣言、style 属性の font-size、font-size="…" 属性の値が、トークンの参照 var(--…) か、
        px・rem（1rem＝16px）・clamp()（最小値）・数だけ（SVG の属性。px とみなす）で 14px 以上。inherit は通す
      - var() で参照するトークンは、ページの中のすべての定義（@media の中の上書きを含む）が 14px 以上（トークンからトークンへの参照もたどる）
@@ -26,8 +26,12 @@
        （Chart.js の既定は 12px）、JavaScript の font の size と ctx.font の px に 14 未満の数が無いこと
      ページの HTML の中だけを見る。外部の .js ファイルが実行時に作る文字は、実寸の検査（check_mobile.mjs）で見る
 終了コード：問題が無ければ 0、あれば 1（問題をファイルごとに出す）。外部には何も読みに行かない。
---fonts：7 の文字の大きさの検査も行う。各リポジトリを段階3 で直すあいだは任意とし、9つのリポジトリが済んだら既定にする。
---selftest：文字の大きさの検査を、通る見本と通らない見本で確かめる（終了コード 0 なら見本どおり）。
+1〜7 をすべて行うのが既定。7 の文字の大きさの検査は、段階3 が9つのリポジトリで済んだので既定にした（2026-11-08）。
+--fonts：互換のために残した指定。付けても付けなくても同じ（7 を行う）。
+--no-shared：共通の部品を持たないページ（議会系の council-dashboard・hino-council-search）のための指定。
+  2 の <title> の形と、3〜6 の共通の部品（css・header・siblings・footer のブロック）の検査を外す。1 の lang と 7 の文字の大きさは行う。
+--selftest：文字の大きさの検査を通る見本と通らない見本で、既定で文字の検査が動くこと、--no-shared で <title> と共通の部品の検査が外れることを
+  見本で確かめる（終了コード 0 なら見本どおり）。
 """
 import os, re, sys, html
 
@@ -50,12 +54,25 @@ def block(doc, name):
 def text_of(fragment):
     return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", fragment))).strip()
 
-def check(path, shared, fonts=False):
-    problems = []
+def check(path, shared, fonts=True, shared_parts=True):
     doc = open(path, encoding="utf-8").read()
+    return check_doc(doc, shared, fonts, shared_parts)
+
+def check_doc(doc, shared, fonts=True, shared_parts=True):
+    problems = []
     # 1 lang
     if not re.search(r"<html[^>]*\blang=\"ja\"", doc):
         problems.append("<html lang=\"ja\"> が無い")
+    if shared_parts:
+        problems.extend(shared_problems(doc, shared))
+    # 7 文字の大きさ（既定で行う）
+    if fonts:
+        problems.extend(font_problems(doc))
+    return problems
+
+def shared_problems(doc, shared):
+    """2〜6：<title> の形と、共通の部品の写し（--no-shared のときは行わない）"""
+    problems = []
     # 2 title
     m = re.search(r"<title>(.*?)</title>", doc, re.S)
     title = norm(m.group(1)) if m else ""
@@ -113,9 +130,6 @@ def check(path, shared, fonts=False):
             problems.append("フッターの「このページについて」が位置づけの文で始まっていない")
         if "注意" not in pairs or not text_of(pairs["注意"]).startswith(CAUTION):
             problems.append("フッターの「注意」が固定の文で始まっていない")
-    # 7 文字の大きさ（--fonts のときだけ）
-    if fonts:
-        problems.extend(font_problems(doc))
     return problems
 
 # ---- 7. 文字の大きさ（DESIGN.md 5.2・9.1） ----
@@ -274,6 +288,51 @@ SELFTEST_NG = [
     ("smaller の指定", "<style>.a{font-size:smaller}</style>"),
 ]
 
+# 共通の部品も <title> も無いページ（議会系のページの形）。既定では4種の問題が出て、--no-shared では出ない
+SELFTEST_NOSHARED = '<html lang="ja"><head><title>日野町議会</title><style>body{font-size:16px}</style></head><body><p>本文</p></body></html>'
+SELFTEST_SHARED_KINDS = ["<title> の形が違う", "portal-shared:css のブロックが無い",
+                         "portal-shared:header のブロックが無い", "portal-shared:footer のブロックが無い"]
+
+def selftest_options():
+    """既定で文字の検査が動くこと（--fonts は互換の指定）と、--no-shared で4種の検査が外れることを見本で確かめる"""
+    bad = 0
+    for argv, want_fonts, want_shared in [(["a.html"], True, True), (["--fonts", "a.html"], True, True),
+                                          (["--no-shared", "a.html"], True, False), (["--fonts", "--no-shared", "a.html"], True, False)]:
+        o = parse_args(argv)
+        if (o["fonts"], o["shared_parts"], o["files"]) == (want_fonts, want_shared, ["a.html"]):
+            print(f"指定 {' '.join(argv)}：文字の検査 {'あり' if o['fonts'] else 'なし'}、共通の部品の検査 {'あり' if o['shared_parts'] else 'なし'}（正しい）")
+        else:
+            bad += 1
+            print(f"指定 {' '.join(argv)}：読み取りが見本と違う {o}（誤り）")
+    # 既定（指定なし）の check_doc で、12px の文字が誤りになる
+    ps = check_doc('<html lang="ja"><head><style>.a{font-size:12px}</style></head><body></body></html>', HERE)
+    if any("12px で 14px 未満" in p for p in ps):
+        print("既定の検査：12px の文字を誤りにした（正しい）")
+    else:
+        bad += 1
+        print("既定の検査：12px の文字を誤りにしなかった（誤り）")
+    # 共通の部品の無いページ。既定では4種の問題、--no-shared では問題なし
+    ps = check_doc(SELFTEST_NOSHARED, HERE)
+    kinds = [k for k in SELFTEST_SHARED_KINDS if any(p.startswith(k) for p in ps)]
+    if len(kinds) == len(SELFTEST_SHARED_KINDS) and len(ps) == len(SELFTEST_SHARED_KINDS):
+        print(f"共通の部品の無いページ（既定）：問題 {len(ps)} 件、4種とも出た（正しい）")
+    else:
+        bad += 1
+        print(f"共通の部品の無いページ（既定）：問題が見本と違う {ps}（誤り）")
+    ps = check_doc(SELFTEST_NOSHARED, HERE, shared_parts=False)
+    if not ps:
+        print("共通の部品の無いページ（--no-shared）：問題なし（正しい）")
+    else:
+        bad += 1
+        print(f"共通の部品の無いページ（--no-shared）：問題が出た {ps}（誤り）")
+    ps = check_doc(SELFTEST_NOSHARED.replace("16px", "12px"), HERE, shared_parts=False)
+    if len(ps) == 1 and "14px 未満" in ps[0]:
+        print("共通の部品の無いページ（--no-shared）の 12px：文字の問題だけが出た（正しい）")
+    else:
+        bad += 1
+        print(f"共通の部品の無いページ（--no-shared）の 12px：問題が見本と違う {ps}（誤り）")
+    return bad, 8
+
 def selftest():
     bad = 0
     ok = font_problems(SELFTEST_OK)
@@ -291,35 +350,48 @@ def selftest():
         else:
             bad += 1
             print(f"通らない見本「{name}」：問題が出なかった（誤り）")
-    print(f"見本 {1 + len(SELFTEST_NG)} 件のうち、見本どおりでないもの {bad} 件")
+    obad, on = selftest_options()
+    bad += obad
+    print(f"見本 {1 + len(SELFTEST_NG) + on} 件のうち、見本どおりでないもの {bad} 件")
     return 1 if bad else 0
 
-def main(argv):
-    shared = HERE
-    fonts = False
-    files = []
+def parse_args(argv):
+    o = {"selftest": False, "shared": HERE, "fonts": True, "shared_parts": True, "files": []}
     i = 0
     while i < len(argv):
-        if argv[i] == "--selftest":
-            return selftest()
-        if argv[i] == "--fonts":
-            fonts = True; i += 1; continue
-        if argv[i] == "--shared":
-            shared = argv[i + 1]; i += 2
+        a = argv[i]
+        if a == "--selftest":
+            o["selftest"] = True; i += 1
+        elif a == "--fonts":
+            i += 1  # 互換の指定。文字の大きさの検査は既定で行う
+        elif a == "--no-shared":
+            o["shared_parts"] = False; i += 1
+        elif a == "--shared":
+            o["shared"] = argv[i + 1]; i += 2
         else:
-            files.append(argv[i]); i += 1
+            o["files"].append(a); i += 1
+    return o
+
+def main(argv):
+    o = parse_args(argv)
+    if o["selftest"]:
+        return selftest()
+    shared, fonts, files = o["shared"], o["fonts"], o["files"]
     if not files:
         print(__doc__); return 2
     bad = 0
     for f in files:
-        ps = check(f, shared, fonts)
+        ps = check(f, shared, fonts, o["shared_parts"])
         if ps:
             bad += 1
             print(f"{f}：問題 {len(ps)} 件")
             for p in ps:
                 print(f"  - {p}")
         else:
-            print(f"{f}：共通の部品は正本と同じ" + ("。文字の大きさは 14px 以上" if fonts else ""))
+            if o["shared_parts"]:
+                print(f"{f}：共通の部品は正本と同じ。文字の大きさは 14px 以上")
+            else:
+                print(f"{f}：文字の大きさは 14px 以上（--no-shared のため、<title> の形と共通の部品は見ていない）")
     return 1 if bad else 0
 
 if __name__ == "__main__":

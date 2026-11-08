@@ -442,12 +442,14 @@ CI で確かめるもの：
 
 各リポジトリの CI は、hino-portal を浅く取ってきて、次の2つを走らせる（書き方は `shared/README.md`）。
 
-- `python3 hino-portal/shared/check.py --fonts <HTML>`
-- `node hino-portal/shared/check_mobile.mjs <HTML>`
+- `python3 hino-portal/shared/check.py <HTML>`（共通の部品を持たない議会系のページは `--no-shared` を付け、`<title>` の形と共通の部品の検査を外す）
+- `node hino-portal/shared/check_mobile.mjs <HTML>`（`#〈名前〉` で開く画面を持つページは `--hash a,b,c` か `--all-hashes` を付けて、画面ごとに測る）
+
+check_mobile.mjs は、ページを `file://` では開かず、HTML の親のフォルダを手元の http で配って開く（ページが読む CSV や data.js を読めるようにするため）。
 
 shiga-hino-plans の validate.mjs（ゲートA）と check_mobile.mjs（ゲートB）は残してよい。文字の下限の数値は 14px に合わせる。
 
-移す間の扱い：check.py の文字の大きさの検査は、いまは `--fonts` を付けたときだけ行う。各リポジトリの段階3 の PR で CI に `--fonts` と check_mobile.mjs の呼び出しを足し、9つのリポジトリが済んだら hino-portal の PR で既定にする。（決定 2026-11-08）
+移す間の扱い：check.py の文字の大きさの検査は、段階3 のあいだは `--fonts` を付けたときだけ行っていた。各リポジトリの段階3 の PR で CI に `--fonts` と check_mobile.mjs の呼び出しを足し、9つのリポジトリで PR が出そろったので、文字の大きさの検査を既定にした。`--fonts` は互換の指定として残し、付けても付けなくても同じに動く。各リポジトリの CI の `--fonts` は外さなくてよい。（決定 2026-11-08）
 
 ### 9.2 移す段階
 
@@ -488,6 +490,8 @@ shiga-hino-plans の validate.mjs（ゲートA）と check_mobile.mjs（ゲー�
 | 文体 | 7 | 事務的で平易。生成AIらしい言い回しを使わない |
 
 2026-11-08（段階3）：文字の大きさの段階を共通の部品のトークン5つ（14・16・18・20・24px。`--portal-fs-h3` 20px を足した）だけにし、各リポジトリのトークンの値をそのどれかにそろえること、直接の指定・`<small>`・`font:` の一括指定の大きさを使わないこと、Chart.js の `font.size` を 14 にすること、幅が足りない箇所は shiga-hino-plans ADR-8 の表で配置を変えて解くことを決めた（5.2）。依頼者の決定（問1〜3。いずれも推奨案）：問1 議会の2つ（council-dashboard・hino-council-search）も対象に含め、最後に別の PR にする。問2 静的検査は hino-portal の `shared/check.py` に足し、実寸の検査は hino-portal に共通の `shared/check_mobile.mjs` を置いて各リポジトリの CI から呼ぶ（9.1）。問3 移す順は hino-portal → shiga-hino-plans → hino-budget・hino-population → hino-plan-dashboard・hino-dashboard・choisoko-hino-dashboard → 議会の2つ。前の調べ（2026-11-08。9つのリポジトリ）では、幅 360px で 14px 未満の文字の要素が hino-portal で 8、ほかの8つのリポジトリのページで合わせて 61,427 あり、いちばん小さいものは 9.17px だった。
+
+2026-11-08（段階3 の仕上げ）：段階3 の PR が9つのリポジトリで出そろった（hino-portal #10、shiga-hino-plans #101、hino-budget #12、hino-population #9、hino-plan-dashboard #8、hino-dashboard #8、choisoko-hino-dashboard #8 はマージ済み。council-dashboard #16、hino-council-search #43 は PR 待ち）。check.py の文字の大きさの検査を既定にし、共通の部品を持たないページのための `--no-shared` を足した。check_mobile.mjs は手元の http でページを開くようにし、`--hash`・`--all-hashes` を足した（9.1）。
 
 2026-11-08（段階2）：区別の色の1組（3.4。系列が1つだけのグラフは藍）と第6次総合計画の柱の色（3.6）を決め、shared/shell.css にトークンとして置いた。数字のカードの小さな折れ線の置き方、小さなグラフを並べる形、時点 × 区分の表、出来事の印の表（4.1）、比較の相手の出典の範囲・前の時点との比べ方・目標と単位をそろえること・比較の相手が無いときの関連する数（6.2）、数字と単位の折り返し禁止と見出しの補いの書き方（6.4）を決めた。増減が無いときの文言は「＝ 増減なし」（金額は「＝ 同額」）とした（3.3）。チョイソコひのの画面では、議会の答弁は引用しない（時間帯と通院・買い物を結びつける資料は令和5年12月の課長答弁1件だけで、時間帯の括りも画面と合わないため）。日野のすがたの出典（統計でわかる！日野のすがた2025）に全国・県の値が無いことは、hino-town-docs の tokei-r6-sugata で確かめた。
 
