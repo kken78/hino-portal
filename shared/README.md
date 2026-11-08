@@ -8,7 +8,7 @@
 | header.html | 共通の見出し（名前・「非公式」の印・分野のナビ） | `<body>` の最初に `<!-- portal-shared:header start -->…<!-- portal-shared:header end -->` として写す。いまの分野のリンクに `aria-current="page"` を付ける（1つだけ） |
 | siblings-plan.html・siblings-stat.html | 分野の中のページの一覧（2.3） | ページの見出しの中（`.portal-page` の最後）に `<!-- portal-shared:siblings start -->…end -->` として写す。いま開いているページは `<a href="…">題</a>` を `<span aria-current="page">題</span>` に替える |
 | footer.html | フッターの型（2.5 の7項目） | `<!-- portal-shared:footer start -->…end -->` として置き、`{{…}}` をページの中身に替える。項目の順は変えない。当てはまらない項目（ポータルのトップの「出典」など）は飛ばしてよい。「このページについて」の最初の文と「注意」の文は変えない |
-| check.py | 上が正本と同じかと、文字の大きさ（DESIGN.md 5.2。`--fonts` のとき）を確かめる静的検査 | 各リポジトリの CI で、hino-portal を浅く取ってきて `python3 hino-portal/shared/check.py --fonts <HTML>` を走らせる（下） |
+| check.py | 上が正本と同じかと、文字の大きさ（DESIGN.md 5.2）を確かめる静的検査 | 各リポジトリの CI で、hino-portal を浅く取ってきて `python3 hino-portal/shared/check.py <HTML>` を走らせる（下）。共通の部品を持たない議会系のページは `--no-shared` を付ける |
 | check_mobile.mjs | 実ブラウザで、文字の実寸が 14px 以上か、ページが横にはみ出さないかを確かめる検査 | 各リポジトリの CI で `node hino-portal/shared/check_mobile.mjs <HTML>` を走らせる（下）。Playwright が要る |
 
 ## ページの見出し（2.2 の 2）
@@ -41,7 +41,9 @@
 
 ページの CSS に自分のトークン（`--fs-*` など）を置くときは、値をこの5つのどれか（`var(--portal-fs-sub)` のような参照か、同じ値）にする。狭い画面の上書きで小さくしない。
 
-check.py の文字の大きさの検査は、`--fonts` を付けたときだけ行う（付けないときは、共通の部品の写し・`<title>`・`lang` だけ）。各リポジトリの段階3 の PR で CI に `--fonts` と check_mobile.mjs を足し、9つのリポジトリが済んだら、hino-portal の PR で既定にする。
+check.py は、`lang`・`<title>` の形・共通の部品の写し・文字の大きさのすべてを既定で確かめる。文字の大きさの検査は、段階3 のあいだは `--fonts` を付けたときだけ行っていたが、9つのリポジトリで段階3 の PR が出そろったので既定にした（2026-11-08）。`--fonts` は互換のために残してあり、付けても付けなくても同じ動きになる。各リポジトリの CI の `--fonts` は外さなくてよい。
+
+共通の部品を持たないページ（議会系の council-dashboard・hino-council-search。DESIGN.md 8章）では `--no-shared` を付ける。`<title>` の形と、共通の部品の4つのブロック（css・header・siblings・footer）の検査を外し、`lang` と文字の大きさだけを確かめる。
 
 check.py の文字の大きさの検査は、shiga-hino-plans の validate.mjs の文字の規則（7）（8）を写したもので、生成物の HTML の中の次を見る。
 
@@ -51,14 +53,17 @@ check.py の文字の大きさの検査は、shiga-hino-plans の validate.mjs �
 - Chart.js を読み込むページ（`src` に chart を含む `<script>` か `new Chart(` があるページ）：`Chart.defaults.font.size` を 14 以上に決めていること（Chart.js の既定は 12px）、`font:{size:N}` の N と canvas の `ctx.font` の px が 14 以上であること
 - 見ないもの：ページの外の .js ファイルが実行時に作る文字（実寸の検査で見る）。canvas に描かれた文字の実寸（測れないので、上の Chart.js の項で見る）
 
-`python3 shared/check.py --selftest` で、通る見本1つと通らない見本19（12px の直接の指定、`<small>`、em、%、clamp の最小値が 12px、Chart.js の size:12 など）が見本どおりに判定されるかを確かめられる。
+`python3 shared/check.py --selftest` で、通る見本1つと通らない見本19（12px の直接の指定、`<small>`、em、%、clamp の最小値が 12px、Chart.js の size:12 など）と、指定の見本8（指定が無くても `--fonts` でも文字の検査が動くこと、`--no-shared` で `<title>` の形と共通の部品の検査が外れ、文字の検査は残ること）が見本どおりに判定されるかを確かめられる。
 
 check_mobile.mjs は、shiga-hino-plans の tools/check_mobile.mjs（ゲートB）を元にしたもので、次のように測る。
 
+- ページは `file://` では開かず、HTML の親のフォルダをルートにして手元の http（127.0.0.1）で配って開く。ページが読む CSV や data.js を読めるようにするため。CDN からの読み込みはページに書いてあるとおりに行う（CI は CDN に出られる）。ルートより上のフォルダ（`../`）のファイルは配らない
 - 幅 360px と 1024px（高さ 800px）で開く
+- `#〈名前〉` で開く画面を持つページは、`--hash a,b,c` で名前を並べて指定するか、`--all-hashes` でページの中の `a[href^="#"]` の名前を集めて順に開く。どちらも、`#` の無い最初の画面も測る。指定が無ければ `#` の無い画面だけを測る
 - タブ（`[role="tab"]` と `.tabs .tab`）があれば1つずつ押して、そのたびに測る。測る前に `details` をすべて開き、`aria-expanded="false"` のボタンを押して開く
 - 表示されている文字の入った要素のすべてで、計算された文字の大きさが 14px 以上か（SVG の中の文字は縮小のあとの大きさ）
 - ページ全体が横にはみ出していないか（`scrollWidth` が画面の幅 +1px 以下。表の中の横スクロールは対象外）
+- 画面ごとに、測った文字の要素の数と最小の文字の大きさを出し、最後にファイルごとの合計を1行で出す
 
 Playwright はリポジトリに入れない（package.json を増やさない）。環境変数 `PLAYWRIGHT_MODULE` に playwright の `index.mjs` のパスを指定する。指定が無ければ `import("playwright")` で読む。`CHROMIUM_PATH` があれば、そのブラウザを使う。Playwright が見つからないときは終了コード 2 で止まる。
 
@@ -75,7 +80,7 @@ PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.
 - name: 共通の部品と文字の大きさ（hino-portal の shared/check.py）
   run: |
     git clone --depth 1 https://github.com/kken78/hino-portal.git /tmp/hino-portal
-    python3 /tmp/hino-portal/shared/check.py --fonts index.html
+    python3 /tmp/hino-portal/shared/check.py index.html
 
 - uses: actions/setup-node@v7
   with:
@@ -91,6 +96,22 @@ PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.
 ```
 
 `index.html` は、そのリポジトリの生成物（shiga-hino-plans は `docs/index.html docs/plans/*.html` など）に替える。生成物がリポジトリに無いもの（hino-council-search の dist/ など）は、作ってから当てる。
+
+共通の部品を持たない議会系のページでは、check.py に `--no-shared` を付ける。check.py の出力から共通の部品の問題を grep で除く書き方は要らなくなる。
+
+```yaml
+    python3 /tmp/hino-portal/shared/check.py --no-shared docs/index.html
+```
+
+`#〈名前〉` で開く画面を持つページ（hino-dashboard など）では、check_mobile.mjs に `--all-hashes` か `--hash` を付ける。
+
+```yaml
+    PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright/index.mjs node /tmp/hino-portal/shared/check_mobile.mjs --all-hashes index.html
+    # 画面を名前で選ぶとき
+    PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright/index.mjs node /tmp/hino-portal/shared/check_mobile.mjs --hash vital_stats,bus index.html
+```
+
+各リポジトリの CI にいま書いてある `--fonts` は、付けたままでも同じに動くので、外す直しは要らない。
 
 ## 正本を変えるとき
 
