@@ -2,7 +2,7 @@
 """共通の部品が hino-portal/shared の正本と同じかと、文字の大きさを確かめる（DESIGN.md 9.1）。
 
 使い方：
-  python3 shared/check.py [--shared <正本のフォルダ>] <HTML ファイル>...
+  python3 shared/check.py [--fonts] [--shared <正本のフォルダ>] <HTML ファイル>...
   python3 shared/check.py --selftest
   正本のフォルダを省くと、このファイルと同じフォルダを使う。
 
@@ -16,7 +16,7 @@
   6. <!-- portal-shared:footer start --> … end の中の <footer> に、footer.html の固定の部分がある：
      dt の並びが「このページについて・出典・資料の時点・注意・データ・ソースコード・ライセンス」の順（無い項目は飛ばしてよい）、
      「このページについて」の最初の文が位置づけの文、「注意」の最初の文が固定の文
-  7. 文字の大きさ（DESIGN.md 5.2・9.1。決定 2026-11-08 段階3）。範囲は shiga-hino-plans の validate.mjs の文字の規則（7）（8）を写した：
+  7. 文字の大きさ（--fonts を付けたときだけ。DESIGN.md 5.2・9.1。決定 2026-11-08 段階3）。範囲は shiga-hino-plans の validate.mjs の文字の規則（7）（8）を写した：
      - <style> の font-size: の宣言、style 属性の font-size、font-size="…" 属性の値が、トークンの参照 var(--…) か、
        px・rem（1rem＝16px）・clamp()（最小値）・数だけ（SVG の属性。px とみなす）で 14px 以上。inherit は通す
      - var() で参照するトークンは、ページの中のすべての定義（@media の中の上書きを含む）が 14px 以上（トークンからトークンへの参照もたどる）
@@ -26,6 +26,7 @@
        （Chart.js の既定は 12px）、JavaScript の font の size と ctx.font の px に 14 未満の数が無いこと
      ページの HTML の中だけを見る。外部の .js ファイルが実行時に作る文字は、実寸の検査（check_mobile.mjs）で見る
 終了コード：問題が無ければ 0、あれば 1（問題をファイルごとに出す）。外部には何も読みに行かない。
+--fonts：7 の文字の大きさの検査も行う。各リポジトリを段階3 で直すあいだは任意とし、9つのリポジトリが済んだら既定にする。
 --selftest：文字の大きさの検査を、通る見本と通らない見本で確かめる（終了コード 0 なら見本どおり）。
 """
 import os, re, sys, html
@@ -49,7 +50,7 @@ def block(doc, name):
 def text_of(fragment):
     return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", fragment))).strip()
 
-def check(path, shared):
+def check(path, shared, fonts=False):
     problems = []
     doc = open(path, encoding="utf-8").read()
     # 1 lang
@@ -112,8 +113,9 @@ def check(path, shared):
             problems.append("フッターの「このページについて」が位置づけの文で始まっていない")
         if "注意" not in pairs or not text_of(pairs["注意"]).startswith(CAUTION):
             problems.append("フッターの「注意」が固定の文で始まっていない")
-    # 7 文字の大きさ
-    problems.extend(font_problems(doc))
+    # 7 文字の大きさ（--fonts のときだけ）
+    if fonts:
+        problems.extend(font_problems(doc))
     return problems
 
 # ---- 7. 文字の大きさ（DESIGN.md 5.2・9.1） ----
@@ -294,11 +296,14 @@ def selftest():
 
 def main(argv):
     shared = HERE
+    fonts = False
     files = []
     i = 0
     while i < len(argv):
         if argv[i] == "--selftest":
             return selftest()
+        if argv[i] == "--fonts":
+            fonts = True; i += 1; continue
         if argv[i] == "--shared":
             shared = argv[i + 1]; i += 2
         else:
@@ -307,14 +312,14 @@ def main(argv):
         print(__doc__); return 2
     bad = 0
     for f in files:
-        ps = check(f, shared)
+        ps = check(f, shared, fonts)
         if ps:
             bad += 1
             print(f"{f}：問題 {len(ps)} 件")
             for p in ps:
                 print(f"  - {p}")
         else:
-            print(f"{f}：共通の部品は正本と同じ。文字の大きさは 14px 以上")
+            print(f"{f}：共通の部品は正本と同じ" + ("。文字の大きさは 14px 以上" if fonts else ""))
     return 1 if bad else 0
 
 if __name__ == "__main__":

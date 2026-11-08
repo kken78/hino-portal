@@ -442,10 +442,12 @@ CI で確かめるもの：
 
 各リポジトリの CI は、hino-portal を浅く取ってきて、次の2つを走らせる（書き方は `shared/README.md`）。
 
-- `python3 hino-portal/shared/check.py <HTML>`
+- `python3 hino-portal/shared/check.py --fonts <HTML>`
 - `node hino-portal/shared/check_mobile.mjs <HTML>`
 
 shiga-hino-plans の validate.mjs（ゲートA）と check_mobile.mjs（ゲートB）は残してよい。文字の下限の数値は 14px に合わせる。
+
+移す間の扱い：check.py の文字の大きさの検査は、いまは `--fonts` を付けたときだけ行う。各リポジトリの段階3 の PR で CI に `--fonts` と check_mobile.mjs の呼び出しを足し、9つのリポジトリが済んだら hino-portal の PR で既定にする。（決定 2026-11-08）
 
 ### 9.2 移す段階
 

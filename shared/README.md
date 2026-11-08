@@ -8,7 +8,7 @@
 | header.html | 共通の見出し（名前・「非公式」の印・分野のナビ） | `<body>` の最初に `<!-- portal-shared:header start -->…<!-- portal-shared:header end -->` として写す。いまの分野のリンクに `aria-current="page"` を付ける（1つだけ） |
 | siblings-plan.html・siblings-stat.html | 分野の中のページの一覧（2.3） | ページの見出しの中（`.portal-page` の最後）に `<!-- portal-shared:siblings start -->…end -->` として写す。いま開いているページは `<a href="…">題</a>` を `<span aria-current="page">題</span>` に替える |
 | footer.html | フッターの型（2.5 の7項目） | `<!-- portal-shared:footer start -->…end -->` として置き、`{{…}}` をページの中身に替える。項目の順は変えない。当てはまらない項目（ポータルのトップの「出典」など）は飛ばしてよい。「このページについて」の最初の文と「注意」の文は変えない |
-| check.py | 上が正本と同じかと、文字の大きさ（DESIGN.md 5.2）を確かめる静的検査 | 各リポジトリの CI で、hino-portal を浅く取ってきて `python3 hino-portal/shared/check.py <HTML>` を走らせる（下） |
+| check.py | 上が正本と同じかと、文字の大きさ（DESIGN.md 5.2。`--fonts` のとき）を確かめる静的検査 | 各リポジトリの CI で、hino-portal を浅く取ってきて `python3 hino-portal/shared/check.py --fonts <HTML>` を走らせる（下） |
 | check_mobile.mjs | 実ブラウザで、文字の実寸が 14px 以上か、ページが横にはみ出さないかを確かめる検査 | 各リポジトリの CI で `node hino-portal/shared/check_mobile.mjs <HTML>` を走らせる（下）。Playwright が要る |
 
 ## ページの見出し（2.2 の 2）
@@ -40,6 +40,8 @@
 | `--portal-fs-h2` | 24px | 見出しの3段め（ページの題） |
 
 ページの CSS に自分のトークン（`--fs-*` など）を置くときは、値をこの5つのどれか（`var(--portal-fs-sub)` のような参照か、同じ値）にする。狭い画面の上書きで小さくしない。
+
+check.py の文字の大きさの検査は、`--fonts` を付けたときだけ行う（付けないときは、共通の部品の写し・`<title>`・`lang` だけ）。各リポジトリの段階3 の PR で CI に `--fonts` と check_mobile.mjs を足し、9つのリポジトリが済んだら、hino-portal の PR で既定にする。
 
 check.py の文字の大きさの検査は、shiga-hino-plans の validate.mjs の文字の規則（7）（8）を写したもので、生成物の HTML の中の次を見る。
 
@@ -73,7 +75,7 @@ PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.
 - name: 共通の部品と文字の大きさ（hino-portal の shared/check.py）
   run: |
     git clone --depth 1 https://github.com/kken78/hino-portal.git /tmp/hino-portal
-    python3 /tmp/hino-portal/shared/check.py index.html
+    python3 /tmp/hino-portal/shared/check.py --fonts index.html
 
 - uses: actions/setup-node@v7
   with:
