@@ -19,7 +19,7 @@ https://kken78.github.io/hino-portal/
 
 - ポータルと各ダッシュボードに共通する決まり（ページの構造・色・グラフ・文字・文体など）は [DESIGN.md](DESIGN.md) に書いています。
 - `index.html` だけで動きます。外部の CSS・JavaScript・フォントは読み込みません。
-- 共通の部品（見出し・分野のナビ・ページの一覧・フッター）の正本は `shared/` にあります。各ダッシュボードはこれを写し、CI で `shared/check.py` により正本と同じかを確かめます（置き方は `shared/README.md`、決まりは DESIGN.md 2章・9.1）。
+- 共通の部品（見出し・分野のナビ・ページの一覧・フッター）の正本は `shared/` にあります。各ダッシュボードはこれを写し、CI で `shared/check.py` により正本と同じかと文字の大きさを、`shared/check_mobile.mjs` により実ブラウザでの文字の実寸と横のはみ出しを確かめます（置き方は `shared/README.md`、決まりは DESIGN.md 2章・5.2・9.1）。
 - カードのリンクの URL は `index.html` 末尾の `SITES` で管理しています。
 
 ダッシュボードを追加したときは、該当する分野の `<div class="cards">` にカードを1つ足し、この README の表にも1行足してください。

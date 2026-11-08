@@ -29,9 +29,6 @@
   --shadow:0 1px 2px rgba(18,53,99,.06),0 6px 18px rgba(18,53,99,.07);
   --serif:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",YuMincho,serif;
   --sans:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",YuGothic,"Noto Sans JP",Meiryo,system-ui,sans-serif;
-  --fs-3xs:.75rem; --fs-2xs:.8rem; --fs-xs:.875rem; --fs-sm:.95rem; --fs-base:1rem;
-  --fs-md:1.1rem; --fs-lg:1.3rem;
-  --fs-h1:clamp(1.5rem,3.4vw,2.1rem); --fs-h2:clamp(1.3rem,2.6vw,1.7rem);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.7;font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
@@ -42,22 +39,22 @@ a{color:var(--ai)}
 
 /* hero */
 .hero{background:linear-gradient(135deg,var(--ai-ink) 0%,var(--ai-deep) 45%,var(--ai) 100%);color:#fff;padding:40px 0 44px}
-.hero h2{font-family:var(--serif);font-size:var(--fs-h1);letter-spacing:.03em;margin:6px 0 8px}
-.hero p{opacity:.88;font-size:var(--fs-sm);max-width:46em}
+.hero h2{font-family:var(--serif);font-size:var(--portal-fs-h2);letter-spacing:.03em;margin:6px 0 8px}
+.hero p{opacity:.88;font-size:var(--portal-fs);max-width:46em}
 
 /* groups */
 main{padding:36px 0 0}
 .group{display:grid;grid-template-columns:200px 1fr;gap:24px;padding:26px 0;border-top:1px solid var(--line)}
 .group:first-child{border-top:none;padding-top:0}
-.g-head h2{font-family:var(--serif);font-size:var(--fs-h2);color:var(--ai-ink);letter-spacing:.03em;line-height:1.35}
-.g-head p{color:var(--muted);font-size:var(--fs-xs);margin-top:6px}
+.g-head h2{font-family:var(--serif);font-size:var(--portal-fs-h3);color:var(--ai-ink);letter-spacing:.03em;line-height:1.35}
+.g-head p{color:var(--muted);font-size:var(--portal-fs-sub);margin-top:6px}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
 .card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;text-decoration:none;color:var(--ink);box-shadow:var(--shadow);transition:border-color .15s}
 .card:hover{border-color:var(--ai)}
-.card h3{font-family:var(--serif);font-size:var(--fs-md);color:var(--ai-ink);line-height:1.45}
-.card p{font-size:var(--fs-xs);color:var(--muted);margin-top:6px;flex:1}
-.card .src{font-size:var(--fs-3xs);color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
-.note{font-size:var(--fs-xs);color:var(--muted);margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.card h3{font-family:var(--serif);font-size:var(--portal-fs-h1);color:var(--ai-ink);line-height:1.45}
+.card p{font-size:var(--portal-fs-sub);color:var(--muted);margin-top:6px;flex:1}
+.card .src{font-size:var(--portal-fs-sub);color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+.note{font-size:var(--portal-fs-sub);color:var(--muted);margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
 .note b{color:var(--ai-ink)}
 
 
@@ -68,9 +65,9 @@ main{padding:36px 0 0}
 <!-- portal-shared:css start --><style>
 /* 日野町データポータル 共通の部品（見出し・ナビ・ページの見出し・フッター）。
    正本は hino-portal/shared/shell.css。各ページはこれを <style> に写し、CI で同じであることを確かめる（DESIGN.md 9.1）。
-   文字の大きさは 14px 以上（DESIGN.md 5.2）。色は 3章の藍と朱。書体は端末のもの（5.1）。
+   文字の大きさは --portal-fs-sub 14px・--portal-fs 16px・--portal-fs-h1 18px・--portal-fs-h3 20px・--portal-fs-h2 24px の5段階だけ（DESIGN.md 5.2）。色は 3章の藍と朱。書体は端末のもの（5.1）。
    --portal-cat1〜5 はグラフの区別の色（3.4）、--portal-pillar1〜5（面）と --portal-pillar1-ink〜5-ink（文字）は第6次総合計画の政策の柱の色（3.6）。 */
-:root{--portal-ai:#1E4E9C;--portal-ai-ink:#0C2547;--portal-shu:#C33D2E;--portal-bg:#EFF3F9;--portal-card:#FFFFFF;--portal-ink:#1A2333;--portal-muted:#5B6B85;--portal-line:#DCE4F0;--portal-foot-bg:#0C2547;--portal-foot-ink:#C9D6EA;--portal-cat1:#3460FB;--portal-cat2:#AC3E00;--portal-cat3:#197A4B;--portal-cat4:#008299;--portal-cat5:#767676;--portal-pillar1:#E72F5C;--portal-pillar2:#E36800;--portal-pillar3:#639B22;--portal-pillar4:#009AB4;--portal-pillar5:#3F51A2;--portal-pillar1-ink:#D91948;--portal-pillar2-ink:#B45300;--portal-pillar3-ink:#4F7B1B;--portal-pillar4-ink:#007A8F;--portal-pillar5-ink:#3F51A2;--portal-fs:16px;--portal-fs-sub:14px;--portal-fs-h1:18px;--portal-fs-h2:24px;--portal-sp1:8px;--portal-sp2:16px;--portal-sp3:24px;--portal-sp4:40px;--portal-font:"Hiragino Sans","Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic Medium","Yu Gothic","Noto Sans CJK JP","Noto Sans JP",Meiryo,system-ui,sans-serif}
+:root{--portal-ai:#1E4E9C;--portal-ai-ink:#0C2547;--portal-shu:#C33D2E;--portal-bg:#EFF3F9;--portal-card:#FFFFFF;--portal-ink:#1A2333;--portal-muted:#5B6B85;--portal-line:#DCE4F0;--portal-foot-bg:#0C2547;--portal-foot-ink:#C9D6EA;--portal-cat1:#3460FB;--portal-cat2:#AC3E00;--portal-cat3:#197A4B;--portal-cat4:#008299;--portal-cat5:#767676;--portal-pillar1:#E72F5C;--portal-pillar2:#E36800;--portal-pillar3:#639B22;--portal-pillar4:#009AB4;--portal-pillar5:#3F51A2;--portal-pillar1-ink:#D91948;--portal-pillar2-ink:#B45300;--portal-pillar3-ink:#4F7B1B;--portal-pillar4-ink:#007A8F;--portal-pillar5-ink:#3F51A2;--portal-fs:16px;--portal-fs-sub:14px;--portal-fs-h1:18px;--portal-fs-h2:24px;--portal-fs-h3:20px;--portal-sp1:8px;--portal-sp2:16px;--portal-sp3:24px;--portal-sp4:40px;--portal-font:"Hiragino Sans","Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic Medium","Yu Gothic","Noto Sans CJK JP","Noto Sans JP",Meiryo,system-ui,sans-serif}
 .portal-wrap{max-width:1080px;margin:0 auto;padding:0 var(--portal-sp2);box-sizing:border-box}
 .portal-head,.portal-page,.portal-foot{font-family:var(--portal-font);font-size:var(--portal-fs);line-height:1.7;letter-spacing:.02em}
 .portal-head *,.portal-page *,.portal-foot *{box-sizing:border-box}
