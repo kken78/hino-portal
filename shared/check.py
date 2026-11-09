@@ -27,7 +27,8 @@
      ページの HTML の中だけを見る。外部の .js ファイルが実行時に作る文字は、実寸の検査（check_mobile.mjs）で見る
   8. 表記（DESIGN.md 3.3・5.6・6.4。--hyoki のときだけ）。本文の文字（<script>・<style> の中とコメントを除き、alt・aria-label・title 属性の字を含める）で：
      - ▲・▼・↑・↓ の直後（空白をはさんでもよい）に数字か「増」「減」が無い
-     - 「+」（全角の「＋」も）の直後に数字が無い。URL と <code>・<pre> の中は見ない
+     - 半角の「+」の直後に数字が無い（全角の「＋」は式の足し算に使うので見ない）。URL と <code>・<pre> の中は見ない
+     - 上の2つと次の語の検査は、<q>（原典の字の引用）の中を見ない
      - 「くわしく」「こちら」「前年比」「前年度比」「前回比」が無い
      - target="_blank" の <a> に「新しいタブで開きます」の字（要素の中の文字、a の aria-label・title、中の要素の alt・aria-label・title）がある
      - 「R」＋数字＋（年・.・〜）の形があるページに「R＝令和」か「R は令和」の字がある
@@ -318,7 +319,7 @@ def _examples(text, pattern, n=3, width=8):
     return len(ms), "、".join(ex)
 
 SIGN_MARK = r"[▲▼↑↓]\s*(?:[0-9０-９]|増|減)"
-PLUS_NUM = r"[+＋][0-9０-９]"
+PLUS_NUM = r"\+[0-9０-９]"
 URL = r"(?:https?:)?//[^\s\"'<>）」]+"
 WORDS = ["くわしく", "こちら", "前年比", "前年度比", "前回比"]
 R_YEAR = r"(?<![A-Za-zＡ-Ｚａ-ｚ])R[0-9０-９]+(?:年|\.|〜|～)"
@@ -328,6 +329,7 @@ NEW_TAB = "新しいタブで開きます"
 def hyoki_problems(doc):
     """8 表記（DESIGN.md 3.3・5.6・6.4）"""
     problems = []
+    doc = re.sub(r"<q\b[^>]*>.*?</q\s*>", " ", doc, flags=re.S | re.I)   # 原典の字の引用の中は見ない（6.4）
     text = body_text(doc)
     n, ex = _examples(text, SIGN_MARK)
     if n:
@@ -453,6 +455,7 @@ SELFTEST_HYOKI_OK = """<html lang="ja"><head><title>R7 の見本</title><style>
 <!-- ▲5 +80 こちら -->
 <p>歳出 2,566千円 増。歳入 △1,531千円 減。原典の表では▲を負の値の印に使っている。</p>
 <p>R7年度・R8.3（R＝令和）。<a href="https://github.com/kken78/hino-portal?q=+1">GitHub</a> https://example.jp/?a=+1</p>
+<p>原典の表記は <q>▲1,531千円</q> <q cite="x">前年比 +3</q>。計 ＝ 本体 ＋３ ＋ 100</p>
 <p><code>x = a +1</code></p><pre>+2</pre><table><tr><td>+</td><td>5</td></tr></table>
 <p style="font-weight:700">太字</p><img src="og.png" alt="見本">
 <a href="https://www.town.shiga-hino.lg.jp/" target="_blank" rel="noopener">日野町ホームページ<span class="v">（新しいタブで開きます）</span></a>
@@ -467,7 +470,7 @@ SELFTEST_HYOKI_NG = [
     ("増減の印 ↑ と数字", "hyoki", "<p>↑12人</p>"),
     ("増減の印（alt の字）", "hyoki", "<img src=\"a.png\" alt=\"▼3人\">"),
     ("+ と数字", "hyoki", "<p>前の月から +80人</p>"),
-    ("全角の ＋ と数字", "hyoki", "<td>＋３</td>"),
+    ("<q> の外の ▲ と数字", "hyoki", "<p><q>▲1</q> ▲2千円</p>"),
     ("くわしく", "hyoki", "<a href=\"a.html\">くわしく</a>"),
     ("こちら", "hyoki", "<a href=\"a.html\">こちら</a>"),
     ("前年比", "hyoki", "<p>前年比 3%</p>"),
