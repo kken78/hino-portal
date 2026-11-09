@@ -126,7 +126,7 @@ main{padding:36px 0 0}
 <section class="group" aria-labelledby="g-plan">
 <div class="g-head">
 <h2 id="g-plan">計画と予算</h2>
-<p>町がどんな計画を持ち、今年度どんな事業に予算をつけたか。</p>
+<p>町がどんな計画を持ち、どんな事業に予算をつけ、どんな資産を持っているか。</p>
 </div>
 <div>
 <div class="cards">
@@ -145,8 +145,13 @@ main{padding:36px 0 0}
 <p>令和3〜8年度の当初予算の附表に載った事業の一覧。年度ごとの柱・款・担当課別の件数と金額、柱と事業ごとの推移。</p>
 <span class="src">出典：日野町『当初予算の概要』附表（令和3〜8年度）</span>
 </a>
+<a class="card" href="https://kken78.github.io/hino-shisan/" data-site="shisan">
+<h3>固定資産台帳 町の資産</h3>
+<p>固定資産台帳（令和6年度末時点）の資産9,896行を、種類・行政の目的・取得の時期ごとにまとめています。全行の一覧と、財務書類との照合も載せています。</p>
+<span class="src">出典：日野町「固定資産台帳（令和6年度末時点）」と令和6年度財務書類4表</span>
+</a>
 </div>
-<p class="note"><b>計画ライブラリ</b>は「町にどんな計画があり、何を書いているか」、<b>総合計画 指標と事業費</b>は「総合計画がどんな目標を置き、どの分野に事業費をつけたか」、<b>当初予算 主な事業</b>は「令和3〜8年度の当初予算で、主な事業にいくらつけ、年度でどう変わったか」を見るものです。</p>
+<p class="note"><b>計画ライブラリ</b>は「町にどんな計画があり、何を書いているか」、<b>総合計画 指標と事業費</b>は「総合計画がどんな目標を置き、どの分野に事業費をつけたか」、<b>当初予算 主な事業</b>は「令和3〜8年度の当初予算で、主な事業にいくらつけ、年度でどう変わったか」、<b>固定資産台帳 町の資産</b>は「町がどんな土地・建物・工作物などを持ち、いつ取得したか」を見るものです。</p>
 </div>
 </section>
 
@@ -212,6 +217,7 @@ const SITES = {
   portal: 'https://kken78.github.io/hino-portal/',
   plans: 'https://kken78.github.io/shiga-hino-plans/',
   budget: 'https://kken78.github.io/hino-budget/',
+  shisan: 'https://kken78.github.io/hino-shisan/',
   population: 'https://kken78.github.io/hino-population/'
 };
 document.querySelectorAll('[data-site]').forEach(function(a){
