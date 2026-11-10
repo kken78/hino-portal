@@ -19,7 +19,7 @@
 ```html
 <div class="portal-page"><div class="portal-wrap">
 <p class="portal-area">計画と予算</p>
-<h1 class="portal-title">当初予算 主な事業（令和3〜8年度）</h1>
+<h1 class="portal-title">予算と決算 町の財政</h1>
 <p class="portal-lead">説明の1行。</p>
 <p class="portal-asof">資料の時点：…。転記日：…</p>
 <!-- portal-shared:siblings start -->…<!-- portal-shared:siblings end -->
