@@ -591,7 +591,7 @@ shiga-hino-plans の validate.mjs（ゲートA）と check_mobile.mjs（ゲー�
 
 2026-11-10（固定資産台帳のページの掲載）：固定資産台帳 町の資産（hino-shisan）を「計画と予算」の分野に足した（2.1）。ポータルのトップにカードを足し、分野の中のページの一覧（`shared/siblings-plan.html`）を4つにした。写しているページ（shiga-hino-plans・hino-plan-dashboard・hino-budget・hino-shisan）は同じ日に写し直す。2.1 の表と 2.3 の例にあった「令和8年度 主な事業」は、いまの題「当初予算 主な事業」に直した。分野の説明の文は「町がどんな計画を持ち、どんな事業に予算をつけ、どんな資産を持っているか。」にした。OGP 画像の「8つのダッシュボード」の数は、09（OGP 画像の扱い）で直す。
 
-2026-11-10（予算のページの題）：hino-budget のページの題を「当初予算 主な事業（令和3〜8年度）」から「予算と決算 町の財政」に改めた（依頼者の決定）。ページに補正予算・決算・財政指標が加わり、題が中身と合わなくなっていたため。ポータルのカード、分野の中のページの一覧（`shared/siblings-plan.html`）、2.1 の表と 2.3 の例、README の表を直した。写しているページ（shiga-hino-plans・hino-plan-dashboard・hino-budget・hino-shisan）は同じ日に写し直す。OGP 画像の字は 09 で直す。
+2026-11-10（予算のページの題）：hino-budget のページの題を「当初予算 主な事業（令和3〜8年度）」から「予算と決算 町の財政」に改めた（依頼者の決定）。ページに補正予算・決算・財政指標が加わり、題が中身と合わなくなっていたため。ポータルのカード、分野の中のページの一覧（`shared/siblings-plan.html`）、2.1 の表と 2.3 の例、README の表を直した。写しているページ（shiga-hino-plans・hino-plan-dashboard・hino-budget・hino-shisan）は同じ日に写し直す。OGP 画像の字は 09 で直す。あわせて、リポジトリの名前を hino-budget から hino-zaisei に改めた（依頼者の決定）。ページの URL は `https://kken78.github.io/hino-zaisei/`。カードの行き先、`SITES`、一覧の正本、README の表、`tools/og_gen.py` の表の名前を改めた。GitHub は公開ページの古い URL を新しい URL へ送らないので、hino-budget の名前で転送用の1ページだけのリポジトリを置く。この文書のこれより前の記述と docs/accessibility.md に出てくる hino-budget は、いまの hino-zaisei を指す。
 
 09 で整理するもの：ライセンスの書き方、OGP 画像・ファビコンの扱い。
 
