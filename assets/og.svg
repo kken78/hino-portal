@@ -12,7 +12,7 @@
 <text x="78" y="206" fill="#ffffff" font-size="72" font-weight="700" letter-spacing="1">日野町</text>
 <text x="78" y="284" fill="#ffffff" font-size="60" font-weight="700" letter-spacing="1">データポータル</text>
 <text x="82" y="352" fill="#ffffff" font-size="25" font-weight="500" opacity="0.88">町の公開資料を、元のページまでたどれる形に</text>
-<text x="82" y="486" fill="#ffffff" font-size="58" font-weight="700" >8</text>
+<text x="82" y="486" fill="#ffffff" font-size="58" font-weight="700" >9</text>
 <text x="122" y="486" fill="#C9D7EE" font-size="26" font-weight="700" >ダッシュボード</text>
 <text x="347.64" y="486" fill="#ffffff" font-size="58" font-weight="700" >3</text>
 <text x="387" y="486" fill="#C9D7EE" font-size="26" font-weight="700" >分野</text>
@@ -20,5 +20,5 @@
 <text x="80" y="592" fill="#C9D7EE" font-size="24" font-weight="500" opacity="0.85">公開資料から作成した個人の試作（非公式）｜日野町データポータル</text>
 </g>
 <g filter="url(#soft)"><rect x="760" y="196" width="400" height="268" rx="20" fill="#ffffff"/></g>
-<g font-family="Noto Sans CJK JP, Noto Sans JP, sans-serif" transform="translate(0,196)"><text x="788" y="50" fill="#1A2333" font-size="24" font-weight="700" >8つのダッシュボード</text><text x="788" y="82" fill="#5B6B85" font-size="24" font-weight="500" >町が公開している資料から作成</text><line x1="788" y1="112" x2="1132" y2="112" stroke="#E9EEF7" stroke-width="2"/><text x="788" y="146" fill="#1A2333" font-size="24" font-weight="700" >計画と予算</text><text x="1132" y="146" fill="#5B6B85" font-size="24" font-weight="500" text-anchor="end">3</text><line x1="788" y1="156" x2="1132" y2="156" stroke="#E9EEF7" stroke-width="2"/><text x="788" y="190" fill="#1A2333" font-size="24" font-weight="700" >議会</text><text x="1132" y="190" fill="#5B6B85" font-size="24" font-weight="500" text-anchor="end">2</text><line x1="788" y1="200" x2="1132" y2="200" stroke="#E9EEF7" stroke-width="2"/><text x="788" y="234" fill="#1A2333" font-size="24" font-weight="700" >統計・くらし</text><text x="1132" y="234" fill="#5B6B85" font-size="24" font-weight="500" text-anchor="end">3</text></g>
+<g font-family="Noto Sans CJK JP, Noto Sans JP, sans-serif" transform="translate(0,196)"><text x="788" y="50" fill="#1A2333" font-size="24" font-weight="700" >9つのダッシュボード</text><text x="788" y="82" fill="#5B6B85" font-size="24" font-weight="500" >町が公開している資料から作成</text><line x1="788" y1="112" x2="1132" y2="112" stroke="#E9EEF7" stroke-width="2"/><text x="788" y="146" fill="#1A2333" font-size="24" font-weight="700" >計画と予算</text><text x="1132" y="146" fill="#5B6B85" font-size="24" font-weight="500" text-anchor="end">4</text><line x1="788" y1="156" x2="1132" y2="156" stroke="#E9EEF7" stroke-width="2"/><text x="788" y="190" fill="#1A2333" font-size="24" font-weight="700" >議会</text><text x="1132" y="190" fill="#5B6B85" font-size="24" font-weight="500" text-anchor="end">2</text><line x1="788" y1="200" x2="1132" y2="200" stroke="#E9EEF7" stroke-width="2"/><text x="788" y="234" fill="#1A2333" font-size="24" font-weight="700" >統計・くらし</text><text x="1132" y="234" fill="#5B6B85" font-size="24" font-weight="500" text-anchor="end">3</text></g>
 </svg>
