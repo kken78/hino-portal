@@ -54,12 +54,17 @@ main{padding:36px 0 0}
 .card h3{font-family:var(--serif);font-size:var(--portal-fs-h1);color:var(--ai-ink);line-height:1.45}
 .card p{font-size:var(--portal-fs-sub);color:var(--muted);margin-top:6px;flex:1}
 .card .src{font-size:var(--portal-fs-sub);color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
-.note{font-size:var(--portal-fs-sub);color:var(--muted);margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
-.note b{color:var(--ai-ink)}
+.card h4{font-family:var(--serif);font-size:var(--portal-fs-h1);color:var(--ai-ink);line-height:1.45}
+.cards.two{grid-template-columns:1fr 1fr}
+.sub + .sub{margin-top:20px}
+.sub > h3{font-size:var(--portal-fs-h1);color:var(--ai-ink);line-height:1.4;padding-left:10px;border-left:4px solid var(--ai)}
+.sub > p{color:var(--muted);font-size:var(--portal-fs-sub);margin:2px 0 10px 14px}
 
 
 @media (max-width:820px){
   .group{grid-template-columns:1fr;gap:12px}
+  .cards.two{grid-template-columns:1fr}
+  .group.has-sub .g-head p{display:none}
 }
 </style>
 <!-- portal-shared:css start --><style>
@@ -123,35 +128,44 @@ main{padding:36px 0 0}
 <main>
 <div class="wrap">
 
-<section class="group" aria-labelledby="g-plan">
+<section class="group has-sub" aria-labelledby="g-plan">
 <div class="g-head">
 <h2 id="g-plan">計画と予算</h2>
 <p>町がどんな計画を持ち、どんな事業に予算をつけ、どんな資産を持っているか。</p>
 </div>
 <div>
-<div class="cards">
+<div class="sub">
+<h3>計画</h3>
+<p>町にどんな計画があり、何を目標にしているか。</p>
+<div class="cards two">
 <a class="card" href="https://kken78.github.io/shiga-hino-plans/" data-site="plans">
-<h3>計画ライブラリ</h3>
+<h4>計画ライブラリ</h4>
 <p>町の43の計画の一覧。計画ごとに、概要・基本目標・数値目標・計画期間を、原典のページ番号つきでまとめています。</p>
 <span class="src">出典：日野町「施策・計画」ページと各計画書</span>
 </a>
 <a class="card" href="https://kken78.github.io/hino-plan-dashboard/">
-<h3>第6次総合計画 指標と事業費</h3>
+<h4>第6次総合計画 指標と事業費</h4>
 <p>第6次日野町総合計画の成果指標の目標値、実施計画の事業費、住民意識調査の結果。</p>
 <span class="src">出典：第6次日野町総合計画と関連する公表資料</span>
 </a>
+</div>
+</div>
+<div class="sub">
+<h3>財政</h3>
+<p>何に予算をつけ、決算と資産がどうなっているか。</p>
+<div class="cards two">
 <a class="card" href="https://kken78.github.io/hino-zaisei/" data-site="budget">
-<h3>予算と決算 町の財政</h3>
+<h4>予算と決算 町の財政</h4>
 <p>令和3〜8年度の当初予算の主な事業（柱・款・担当課別の件数と金額、年度の推移）と、補正予算・決算の額、財政指標の推移。</p>
 <span class="src">出典：日野町『当初予算の概要』附表、補正予算の概要、決算審査意見書、財政状況資料集</span>
 </a>
 <a class="card" href="https://kken78.github.io/hino-shisan/" data-site="shisan">
-<h3>固定資産台帳 町の資産</h3>
+<h4>固定資産台帳 町の資産</h4>
 <p>固定資産台帳（令和6年度末時点）の資産9,896行を、種類・行政の目的・取得の時期ごとにまとめています。全行の一覧と、財務書類との照合も載せています。</p>
 <span class="src">出典：日野町「固定資産台帳（令和6年度末時点）」と令和6年度財務書類4表</span>
 </a>
 </div>
-<p class="note"><b>計画ライブラリ</b>は「町にどんな計画があり、何を書いているか」、<b>総合計画 指標と事業費</b>は「総合計画がどんな目標を置き、どの分野に事業費をつけたか」、<b>予算と決算 町の財政</b>は「主な事業にいくら予算をつけ、補正予算と決算でどうなったか、財政指標がどう動いているか」、<b>固定資産台帳 町の資産</b>は「町がどんな土地・建物・工作物などを持ち、いつ取得したか」を見るものです。</p>
+</div>
 </div>
 </section>
 
@@ -160,7 +174,7 @@ main{padding:36px 0 0}
 <h2 id="g-council">議会</h2>
 <p>議会で何が質問され、どう答えたか。</p>
 </div>
-<div class="cards">
+<div class="cards two">
 <a class="card" href="https://kken78.github.io/council-dashboard/">
 <h3>議会だより・一般質問</h3>
 <p>議会だよりに載った一般質問を、議員別・テーマ別に一覧できます。</p>
