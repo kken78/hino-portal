@@ -1,5 +1,5 @@
 {
-  "note": "手元版（DESIGN.md 11章）に束ねる版。版を上げるときは commit を直す PR を出す。source は公開しているフォルダ（リポジトリの中のパス）、dest は束ね先（出力先の中のパス）、exclude は束ねないファイル（source からのパスの glob。tools/bundle.py の既定の除外に足す）。make は、公開しているフォルダをそのまま写さずに道具で作るもの。",
+  "note": "手元版（DESIGN.md 11章）に束ねる版。版を上げるときは commit を直す PR を出す。source は公開しているフォルダ（リポジトリの中のパス）、dest は束ね先（出力先の中のパス）、exclude は束ねないファイル（source からのパスの glob。tools/bundle.py の既定の除外に足す）。make は、公開しているフォルダをそのまま写さずに道具で作るもの。no_mark は、幅の決まった部品の中にあって「（インターネット）」の印を付けると字が切れるリンク（selector）と、その代わりに1回だけ書く文（note を note_before の要素の前に置く）。",
   "repos": [
     {
       "name": "hino-portal",
@@ -8,7 +8,11 @@
       "published": "main の直下（index.html と .nojekyll がリポジトリの直下にあり、公開の作業の手順は無い）",
       "source": ".",
       "dest": "日野町データポータル_手元版",
-      "exclude": ["shared/**", "docs/**", "assets/**"]
+      "exclude": [
+        "shared/**",
+        "docs/**",
+        "assets/**"
+      ]
     },
     {
       "name": "shiga-hino-plans",
@@ -17,7 +21,9 @@
       "published": "main の docs/（DESIGN.md のフォルダの図に「docs/ GitHub Pages 公開ルート」）",
       "source": "docs",
       "dest": "日野町データポータル_手元版/shiga-hino-plans",
-      "exclude": ["plans/_*"]
+      "exclude": [
+        "plans/_*"
+      ]
     },
     {
       "name": "hino-plan-dashboard",
@@ -81,7 +87,17 @@
       "source": "docs",
       "dest": "日野町データポータル_手元版/council-dashboard",
       "exclude": [],
-      "extra": ["LICENSE", "LICENSE-DATA.md"]
+      "extra": [
+        "LICENSE",
+        "LICENSE-DATA.md"
+      ],
+      "no_mark": [
+        {
+          "selector": ".tlcap",
+          "note_before": "#sessionTL",
+          "note": "号の名前は、議会だよりの PDF へのリンクです。インターネットにつながるときだけ開けます。"
+        }
+      ]
     },
     {
       "name": "hino-shiryo",
@@ -96,11 +112,14 @@
       "name": "hino-council-search",
       "title": "会議録 横断検索",
       "commit": "f8b923593e3db2cc320d85991b9b8e680b59e0dc",
-      "published": "GitHub Actions（.github/workflows/build-deploy.yml が scripts/build.mjs で作る dist/online を公開する）",
+      "published": "GitHub Actions（.github/workflows/build-deploy.yml が scripts/build.mjs で作る dist/online を公開する）。手元版には、同じ scripts/build.mjs が作る配布用の HTML（dist/<ui.offline_file>）を使う",
       "source": ".",
       "dest": "日野町議会_会議録検索",
-      "make": "hino-council-search-preview",
-      "extra": ["LICENSE", "LICENSE-DATA.md"]
+      "make": "hino-council-search-offline",
+      "extra": [
+        "LICENSE",
+        "LICENSE-DATA.md"
+      ]
     }
   ]
 }

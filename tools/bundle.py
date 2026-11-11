@@ -7,14 +7,14 @@
      作業ツリーの状態には左右されない。その版が手元に無ければ、取り出し方を書いて止まる。
   2. 出力先に 日野町データポータル_手元版/ と 日野町議会_会議録検索/ を作る（11.2）。
      hino-council-search は、そのリポジトリのスクリプトで索引データを埋め込んだ1つの HTML を作り、index.html として置く
-     （lock の make。hino-council-search-preview は scripts/build-preview.mjs の preview.html、
-       hino-council-search-offline は scripts/build.mjs のオフライン配布用の HTML）。
+     （lock の make: hino-council-search-offline。scripts/build.mjs が作る配布用の HTML）。
   3. https://kken78.github.io/<リポジトリの名前>/… へのリンクを、束ねた先への相対のリンクにする（11.4）。
      HTML と JavaScript のファイルに当てる。meta と link rel="canonical"・"alternate" の中は変えない（画面のリンクではないため）。
   4. 全ページの上に帯を差し込み、インターネットにつながるときだけ開けるリンクのあとに「（インターネット）」を付ける CSS を足す。
   5. はじめにお読みください.txt と ファイルの一覧.csv を書く。
   6. 渡す前の検査（11.5）：実行ファイル類・マクロ・autorun.inf、手元のリンク切れ、外からの読み込み、
-     実ブラウザ（tools/bundle_check.mjs。Playwright）で全ページを file:// で開いたときの外への通信と JavaScript のエラー。
+     実ブラウザ（tools/bundle_check.mjs。Playwright）で全ページを file:// で開き、タブと # の画面もたどったときの
+     外への通信と JavaScript のエラー、印で字が切れるリンク、幅 360px での帯の行数。
      1つでもあれば終了コード 1。
 
 原典の PDF（11.2 の 原典/、資料の一覧.csv、PDF へのリンクの書き換え）はまだ扱わない。
@@ -103,6 +103,9 @@ BAND_STYLE = (
     'a[href^="http://"]::after,a[href^="https://"]::after,a[href^="//"]::after{content:"（インターネット）"}'
     "</style>"
 )
+
+
+BAND_MAX_LINES = 2  # 幅 360px での帯の行数の上限
 
 
 class BundleError(Exception):
@@ -291,44 +294,62 @@ def rewrite_urls(text, base_dir, dests, protect_html=False, log=None):
 
 def band_html(made, page_date):
     return ('<div class="temoto-band" role="note" aria-label="手元版"><p>'
-            f"手元版　{jp_date(made)}作成。このページは{jp_date(page_date)}時点の公開版と同じ内容です。"
-            "「（インターネット）」の付いたリンクは、インターネットにつながるときだけ開けます。"
+            f"手元版（{jp_date(made)}作成）　公開版の{jp_date(page_date)}時点と同じ内容です。"
             "</p></div>")
+
+
+def css_string(s):
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ") + '"'
+
+
+def no_mark_css(rules):
+    """lock の no_mark から、印を出さない部品と、その代わりに1回だけ書く文の CSS を作る。
+    rules：[{"selector": 印を出さないリンク, "note_before": 文を前に置く要素, "note": 文}]。
+    幅の決まった部品（札など）の中のリンクは、印を足すと字が切れるため。"""
+    css = []
+    for r in rules:
+        sel = r["selector"]
+        if not re.fullmatch(r"[A-Za-z0-9_.#\-\[\]=\"' >:,()^$*]+", sel):
+            raise BundleError(f"no_mark の selector が正しくありません：{sel}")
+        css.append(",".join(f"{x.strip()}::after" for x in sel.split(",")) + "{content:none!important}")
+        if r.get("note_before"):
+            nb = r["note_before"]
+            if not re.fullmatch(r"[A-Za-z0-9_.#\-]+", nb):
+                raise BundleError(f"no_mark の note_before が正しくありません：{nb}")
+            css.append(f"{nb}::before{{content:{css_string(r['note'])};display:block;"
+                       "font-size:var(--portal-fs-sub,14px);font-weight:400;line-height:1.6;margin:0 0 8px}")
+    return "".join(css)
 
 
 HEAD_END_RE = re.compile(r"</head\s*>", re.I)
 BODY_RE = re.compile(r"<body\b[^>]*>", re.I)
 
 
-def inject(text, band):
+def inject(text, band, extra_css=""):
     """</head> の前に帯と印の CSS を、<body> の直後に帯を入れる"""
     mb = BODY_RE.search(text)
     if not mb:
         raise BundleError("<body> がありません")
     mh = HEAD_END_RE.search(text, 0, mb.start())
     text = text[:mb.end()] + band + text[mb.end():]
+    style = BAND_STYLE.replace("</style>", extra_css + "</style>") if extra_css else BAND_STYLE
     if mh:
-        return text[:mh.start()] + BAND_STYLE + text[mh.start():]
-    return text[:mb.start()] + BAND_STYLE + text[mb.start():]
+        return text[:mh.start()] + style + text[mh.start():]
+    return text[:mb.start()] + style + text[mb.start():]
 
 
 # ---------------------------------------------------------------- hino-council-search
 
-COUNCIL_MAKES = {
-    # make の名前 → （動かすスクリプト、できるファイル）。できるファイルの None は site.config.json の ui.offline_file
-    "hino-council-search-preview": ("scripts/build-preview.mjs", "preview.html"),
-    "hino-council-search-offline": ("scripts/build.mjs", None),
-}
+COUNCIL_MAKES = ("hino-council-search-offline",)
+COUNCIL_PDF_DIR = "議事録本体"
 
 
-def make_council(repo, commit, dest, dests, allow_missing, make):
-    """hino-council-search のスクリプトで、索引データを埋め込んだ1つの HTML を作る。
-    preview（scripts/build-preview.mjs）：PDF のリンクは 議事録本体/ に向く（原典を入れないとき＝--allow-missing では、
-      町のホームページの URL のまま）。会議ページのリンクは出さない。
-    offline（scripts/build.mjs の dist/<ui.offline_file>）：PDF と会議ページのリンクは町のホームページの URL のまま。
-    どちらも、site.config.json の中の公開版の URL は、束ねた先への相対のリンクにしてから渡す
-    （build-preview.mjs は http(s) で始まる固定のリンクを外すので、ポータルへの戻りのリンクを残すため）。"""
-    script, product = COUNCIL_MAKES[make]
+def make_council(repo, commit):
+    """hino-council-search の scripts/build.mjs で、配布用の HTML（索引データを埋め込んだ1つの HTML。
+    dist/<site.config.json の ui.offline_file>）を作る。画面はそのリポジトリが配布用に作るものと同じで、
+    公開版へのリンクは、ほかのページと同じく束ねたあとの書き換えで相対のリンクにする。
+    PDF と会議ページのリンクは町のホームページの URL のまま（原典を入れる処理は council_pdf_map を使って足す）。
+    返すもの：({"index.html": bytes}, {"meetings": [...], "toc": [...]})"""
     if not shutil.which("node"):
         raise BundleError("hino-council-search を作るには Node.js（node）が要ります")
     data = git(repo, "archive", "--format=tar", commit, binary=True)
@@ -341,27 +362,36 @@ def make_council(repo, commit, dest, dests, allow_missing, make):
                 tar.extractall(tmp, filter="data")
             except TypeError:  # filter の無い古い Python
                 tar.extractall(tmp)
-        conf_path = os.path.join(tmp, "site.config.json")
-        with open(conf_path, encoding="utf-8") as f:
-            conf = f.read()
-        conf = rewrite_urls(conf, dest, dests)
-        conf_local = os.path.join(tmp, "site.config.temoto.json")
-        with open(conf_local, "w", encoding="utf-8") as f:
-            f.write(conf)
-        env = dict(os.environ, HINO_SITE_CONFIG=conf_local)
-        env.pop("HINO_PDF_DIR", None)
-        if allow_missing:
-            env["HINO_PDF_ONLINE"] = "1"
-        else:
-            env.pop("HINO_PDF_ONLINE", None)
-        r = subprocess.run(["node", os.path.join(tmp, *script.split("/"))], cwd=tmp, env=env, capture_output=True)
+        # 手元の環境変数で作り方が変わらないようにする（PDF の同梱と別の設定のファイルを使わない）
+        env = {k: v for k, v in os.environ.items() if not k.startswith("HINO_")}
+        r = subprocess.run(["node", os.path.join(tmp, "scripts", "build.mjs")], cwd=tmp, env=env, capture_output=True)
         if r.returncode != 0:
-            raise BundleError(f"hino-council-search の {script} が失敗しました：\n"
+            raise BundleError("hino-council-search の scripts/build.mjs が失敗しました：\n"
                               + r.stderr.decode("utf-8", "replace"))
-        if product is None:
-            product = "dist/" + json.loads(conf).get("ui", {}).get("offline_file", "会議録検索.html")
-        with open(os.path.join(tmp, *product.split("/")), "rb") as f:
-            return {"index.html": f.read()}
+        with open(os.path.join(tmp, "site.config.json"), encoding="utf-8") as f:
+            offline = json.load(f).get("ui", {}).get("offline_file", "会議録検索.html")
+        with open(os.path.join(tmp, "dist", offline), "rb") as f:
+            page = f.read()
+        meta = {}
+        for k in ("meetings", "toc"):
+            with open(os.path.join(tmp, "public", "data", k + ".json"), encoding="utf-8") as f:
+                meta[k] = json.load(f)
+        return {"index.html": page}, meta
+
+
+def council_pdf_map(meetings, toc, pdf_dir=COUNCIL_PDF_DIR):
+    """会議録の PDF の URL → 手元のパス（<pdf_dir>/<会議ID>_<ファイル名>）。
+    hino-council-search の scripts/fetch-pdfs.mjs・build-preview.mjs と同じ名前の付け方
+    （ファイル名だけでは会議をまたいで重なるので、会議ID を前に付ける）。
+    次の PR（原典）で、手元にある PDF だけをこの対応で書き換えるのに使う。"""
+    out = {}
+    for group in (meetings, toc):
+        for m in group:
+            for p in m.get("pdfs") or []:
+                u = p.get("url")
+                if u and "://" in u:
+                    out.setdefault(u, f"{pdf_dir}/{m['id']}_{u.rsplit('/', 1)[-1]}")
+    return out
 
 
 # ---------------------------------------------------------------- 検査 (a)
@@ -629,7 +659,9 @@ def build(args):
         repo = find_repo(r["name"], src)
         date = check_commit(repo, r["name"], r["commit"])
         if r.get("make") in COUNCIL_MAKES:
-            files = make_council(repo, r["commit"], r["dest"], dests, args.allow_missing, r["make"])
+            files, council_meta = make_council(repo, r["commit"])
+            # 原典を入れるとき（次の PR）は、ここで council_pdf_map(council_meta["meetings"], council_meta["toc"]) の
+            # 対応のうち手元に PDF があるものを index.html の中で書き換え、PDF を <dest>/議事録本体/ に写す
         elif r.get("make"):
             raise BundleError(f"{r['name']}：知らない make の指定です：{r['make']}")
         else:
@@ -648,6 +680,7 @@ def build(args):
 
     # 2. リンクの書き換えと帯
     date_of = {it["name"]: it["date"] for it in items}
+    no_mark_of = {it["name"]: no_mark_css(it.get("no_mark", [])) for it in items}
     rewritten, leftovers = 0, []
     for p in sorted(bundle):
         ext = posixpath.splitext(p)[1].lower()
@@ -667,7 +700,7 @@ def build(args):
         rewritten += len(log)
         if is_html:
             try:
-                text = inject(text, band_html(made, date_of[owner[p]]))
+                text = inject(text, band_html(made, date_of[owner[p]]), no_mark_of[owner[p]])
             except BundleError as e:
                 raise BundleError(f"{p}：{e}")
         bundle[p] = text.encode("utf-8")
@@ -791,20 +824,29 @@ def check(out, args):
     con = sum(len(x["consoleErrors"]) for x in res)
     miss = sum(len(x["failed"]) for x in res)
     loaderr = [x for x in res if x.get("loadError")]
-    print(f"  (c) 実ブラウザ（file://）で開いたページ：{len(res)} / {len(pages)}")
+    clip = sum(len(x["clipped"]) for x in res)
+    band = max((x["bandLines360"] for x in res), default=0)
+    wide_band = [x for x in res if x["bandLines360"] > BAND_MAX_LINES]
+    print(f"  (c) 実ブラウザ（file://）で開いたページ：{len(res)} / {len(pages)}"
+          f"（押したタブ {sum(x['tabs'] for x in res)}、開いた # の画面 {sum(x['hashes'] for x in res)}）")
     print(f"      外への通信：{req} 件")
     print(f"      JavaScript のエラー：{jserr} 件")
     print(f"      コンソールのエラー：{con} 件")
     print(f"      手元のファイルを読めなかったもの：{miss} 件")
     print(f"      開けなかったページ：{len(loaderr)} 件")
+    print(f"      「（インターネット）」の印で字が切れるリンク（幅 1280px と 360px）：{clip} 件")
+    print(f"      幅 360px での帯の行数：最大 {band} 行（{BAND_MAX_LINES} 行を超えたページ {len(wide_band)} 件）")
     for x in res:
         for kind, label in (("requests", "外への通信"), ("pageErrors", "JavaScript のエラー"),
-                            ("consoleErrors", "コンソールのエラー"), ("failed", "読めなかったもの")):
+                            ("consoleErrors", "コンソールのエラー"), ("failed", "読めなかったもの"),
+                            ("clipped", "印で字が切れるリンク")):
             for v in x[kind]:
                 print(f"      - {x['page']}：{label}：{v}")
         if x.get("loadError"):
             print(f"      - {x['page']}：開けなかった：{x['loadError']}")
-    problems += req + jserr + con + miss + len(loaderr) + (len(pages) - len(res))
+        if x["bandLines360"] > BAND_MAX_LINES:
+            print(f"      - {x['page']}：幅 360px で帯が {x['bandLines360']} 行")
+    problems += req + jserr + con + miss + len(loaderr) + (len(pages) - len(res)) + clip + len(wide_band)
     return problems, True
 
 

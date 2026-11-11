@@ -94,11 +94,15 @@ class InjectTest(unittest.TestCase):
     def test_band_and_style(self):
         import datetime
         band = bundle.band_html(datetime.date(2026, 11, 11), datetime.date(2026, 11, 10))
-        self.assertIn("2026年11月11日作成", band)
-        self.assertIn("2026年11月10日時点の公開版", band)
+        self.assertIn("<p>手元版（2026年11月11日作成）　公開版の2026年11月10日時点と同じ内容です。</p>", band)
+        self.assertNotIn("インターネット", band)
         out = bundle.inject('<html><head><title>t</title></head><body class="x"><p>a</p></body></html>', band)
         self.assertLess(out.index('id="temoto-style"'), out.index("</head>"))
         self.assertTrue(out.split('<body class="x">', 1)[1].startswith('<div class="temoto-band"'))
+
+    def test_extra_css_inside_style(self):
+        out = bundle.inject("<html><head></head><body></body></html>", "B", ".x::after{content:none}")
+        self.assertIn('.x::after{content:none}</style></head>', out)
 
     def test_no_body(self):
         with self.assertRaises(bundle.BundleError):
@@ -107,6 +111,33 @@ class InjectTest(unittest.TestCase):
     def test_band_font_size_not_below_14(self):
         self.assertIn("--portal-fs-sub:14px", bundle.BAND_STYLE)
         self.assertNotRegex(bundle.BAND_STYLE, r"font-size:\s*(1[0-3]|[0-9])px")
+
+
+class NoMarkTest(unittest.TestCase):
+    def test_css(self):
+        css = bundle.no_mark_css([{"selector": ".tlcap", "note_before": "#sessionTL", "note": 'a"b'}])
+        self.assertIn(".tlcap::after{content:none!important}", css)
+        self.assertIn('#sessionTL::before{content:"a\\"b";display:block', css)
+        self.assertNotRegex(css, r"font-size:\s*(1[0-3]|[0-9])px")
+
+    def test_empty(self):
+        self.assertEqual(bundle.no_mark_css([]), "")
+
+    def test_bad_selector(self):
+        with self.assertRaises(bundle.BundleError):
+            bundle.no_mark_css([{"selector": ".a{}</style>"}])
+        with self.assertRaises(bundle.BundleError):
+            bundle.no_mark_css([{"selector": ".a", "note_before": "#a b", "note": "x"}])
+
+
+class CouncilPdfTest(unittest.TestCase):
+    def test_map(self):
+        meetings = [{"id": "0000001", "pdfs": [{"url": "https://h/c/1/4nitime.pdf"}]},
+                    {"id": "0000002", "pdfs": [{"url": "https://h/c/2/4nitime.pdf"}]}]
+        toc = [{"id": "0000001", "pdfs": [{"url": "https://h/c/1/4nitime.pdf"}, {"url": ""}]}]
+        m = bundle.council_pdf_map(meetings, toc)
+        self.assertEqual(m, {"https://h/c/1/4nitime.pdf": "議事録本体/0000001_4nitime.pdf",
+                             "https://h/c/2/4nitime.pdf": "議事録本体/0000002_4nitime.pdf"})
 
 
 class ForbiddenTest(unittest.TestCase):
@@ -182,6 +213,10 @@ class LockTest(unittest.TestCase):
                   "hino-population", "hino-dashboard", "choisoko-hino-dashboard", "council-dashboard",
                   "hino-shiryo", "hino-council-search"):
             self.assertIn(n, names)
+        council = [r for r in lock["repos"] if r["name"] == "hino-council-search"][0]
+        self.assertIn(council["make"], bundle.COUNCIL_MAKES)
+        for r in lock["repos"]:
+            bundle.no_mark_css(r.get("no_mark", []))
         dests = bundle.dest_map(lock["repos"])
         self.assertEqual(dests["hino-portal"], P)
         self.assertEqual(dests["hino-council-search"], C)
