@@ -14,7 +14,7 @@
   5. 原典を一式に入れる（11.2）。手元にあるものだけを写し、その URL へのリンクを手元のファイルへの相対のリンクにする（11.4）。
        計画の原典   shiga-hino-plans の data/sources_index.tsv（lock の版）の file のある行。
                     読み込み元 <plans-raw>/<id>/<file> → 原典/計画/<id>/<file>。写すときに sha256 を比べる
-       町の資料     hino-town-docs の data/sources.tsv（取り出しの HEAD の版）の format が pdf・xlsx の行。
+       町の資料     hino-town-docs の data/sources.tsv（lock の ledgers の版）の format が pdf・xlsx の行。
                     読み込み元 <docs-raw>/<id>.<format> → 原典/資料/<category>/<id>.<format>。写すときに sha256 を比べる
        会議録       hino-council-search の meetings.json・toc.json の PDF（council_pdf_map）。
                     読み込み元 <council-pdf>/<会議ID>_<ファイル名>（scripts/fetch-pdfs.mjs の置き方）→ 日野町議会_会議録検索/議事録本体/
@@ -164,6 +164,20 @@ def load_lock(path):
             raise BundleError(f"{path}：{r['name']} の dest は {PORTAL_DIR}/ か {COUNCIL_DIR}/ の下にしてください")
         if ".." in r["dest"].split("/") or r["dest"].startswith("/"):
             raise BundleError(f"{path}：{r['name']} の dest が正しくありません")
+    ledgers = lock.setdefault("ledgers", [])
+    if not isinstance(ledgers, list):
+        raise BundleError(f"{path} の ledgers が一覧ではありません")
+    for r in ledgers:
+        for k in ("name", "commit", "use"):
+            if not isinstance(r.get(k), str) or not r[k]:
+                raise BundleError(f"{path}：ledgers の {r.get('name', '?')} に {k} がありません")
+        if not re.fullmatch(r"[0-9a-f]{40}", r["commit"]):
+            raise BundleError(f"{path}：ledgers の {r['name']} の commit が40桁の16進数ではありません：{r['commit']}")
+        if r["name"] in seen:
+            raise BundleError(f"{path}：{r['name']} が2回あります")
+        if "dest" in r or "source" in r:
+            raise BundleError(f"{path}：ledgers の {r['name']} は画面を束ねないので、dest と source を書きません")
+        seen.add(r["name"])
     return lock
 
 
@@ -633,6 +647,21 @@ def file_sha256(path):
     return h.hexdigest()
 
 
+def extra_files(root, used):
+    """読み込み元 root の下にあって、一覧のどれにも当たらないファイル（写さない。件数を出すだけ）"""
+    used = {os.path.abspath(u) for u in used}
+    out = []
+    if not os.path.isdir(root):
+        return out
+    for dp, dns, fns in os.walk(root):
+        dns.sort()
+        for fn in sorted(fns):
+            p = os.path.abspath(os.path.join(dp, fn))
+            if p not in used:
+                out.append(p)
+    return out
+
+
 def resolve_items(items):
     """手元にあるか、sha256（台帳にあるもの）か中身の形が合うかを見る。
     返すもの：(入れるもの, 無いもの, [(合わないもの, 理由)])。入れるものには src を足す"""
@@ -741,8 +770,29 @@ def bundled_state(counts):
     return res
 
 
-def shiryo_list_csv(rows, present):
-    """資料の一覧.csv：町の資料の台帳の全行。一式の中のファイルは、入れたものだけ書く"""
+SHIRYO_CATS_RE = re.compile(r'"cats"\s*:\s*(\[\s*\[.*?\]\s*\])', re.S)
+
+
+def shiryo_cat_names(bundle, shiryo_dest, rows):
+    """町の資料の検索（hino-shiryo）の画面が使う分類の名前（束ねた data/index.js の cats。hino-shiryo の
+    tools/build_data.py の CATS と同じもの）を読む。返すもの：({略: 名前}, [名前の無い略])"""
+    names = {}
+    data = bundle.get(f"{shiryo_dest}/data/index.js") if shiryo_dest else None
+    if data:
+        m = SHIRYO_CATS_RE.search(data.decode("utf-8", "replace"))
+        if m:
+            try:
+                names = {c: n for c, n in json.loads(m.group(1))}
+            except (ValueError, TypeError):
+                names = {}
+    unknown = sorted({r["category"] for r in rows if r["category"] not in names})
+    return names, unknown
+
+
+def shiryo_list_csv(rows, present, cat_names=None):
+    """資料の一覧.csv：町の資料の台帳の全行。分類は町の資料の検索の画面の名前（無いものは略のまま）。
+    一式の中のファイルは、入れたものだけ書く"""
+    cat_names = cat_names or {}
     where = {it["url"]: it["dest"] for it in present if it["kind"] == "doc"}
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\r\n")
@@ -751,7 +801,7 @@ def shiryo_list_csv(rows, present):
         dest = where.get(r["url"], "")
         if dest.startswith(PORTAL_DIR + "/"):
             dest = dest[len(PORTAL_DIR) + 1:]
-        w.writerow([r["id"], r["category"], r["title"], r.get("fiscal_year", ""), r.get("date", ""), dest, r["url"]])
+        w.writerow([r["id"], cat_names.get(r["category"], r["category"]), r["title"], r.get("fiscal_year", ""), r.get("date", ""), dest, r["url"]])
     return buf.getvalue()
 
 
@@ -906,8 +956,8 @@ def write_files(out, files):
             f.write(data)
 
 
-def readme_text(made, items, counts, docs_version=None):
-    """counts：種類ごとの (全部, 入れた)。docs_version：町の資料の一覧の元にした hino-town-docs の (版の番号, 日付)"""
+def readme_text(made, items, counts, ledgers=()):
+    """counts：種類ごとの (全部, 入れた)。ledgers：画面を束ねず一覧だけを読むリポジトリ（lock の ledgers に date を足したもの）"""
     gikai = next((it["dest"][len(PORTAL_DIR) + 1:] for it in items if it["name"] == GIKAI_REPO), GIKAI_REPO)
     L = []
     L.append("日野町データポータル　手元版")
@@ -977,10 +1027,12 @@ def readme_text(made, items, counts, docs_version=None):
         L.append(f"  版の番号：{it['commit']}")
         L.append(f"  版の日付：{jp_date(it['date'])}")
         L.append(f"  置き場所：{it['dest']}/")
-    if docs_version and counts.get("doc", (0, 0))[0]:
-        L.append("")
-        L.append(f"町の資料の一覧（{SHIRYO_LIST_NAME}）と町の資料の原典は、リポジトリ {DOCS_REPO} の版の番号 {docs_version[0]}"
-                 f"（{jp_date(docs_version[1])}）の一覧から作りました。")
+    for it in ledgers:
+        L.append(f"{it['title']}")
+        L.append(f"  リポジトリ：{it['name']}")
+        L.append(f"  版の番号：{it['commit']}")
+        L.append(f"  版の日付：{jp_date(it['date'])}")
+        L.append(f"  使い方：この版の一覧から、{SHIRYO_LIST_NAME} と、一式に入れる町の資料の原典を決めました（画面はありません）")
     L.append("")
     return "\r\n".join(L)
 
@@ -1095,12 +1147,16 @@ def build(args):
     plans_repo, plans_commit = commit_of[PLANS_REPO]
     plan_rows = read_ledger(git(plans_repo, "show", f"{plans_commit}:{PLANS_LEDGER}"),
                             ("id", "file", "url", "sha256"), f"{PLANS_REPO}/{PLANS_LEDGER}")
+    led = next((x for x in lock["ledgers"] if x["name"] == DOCS_REPO), None)
+    if led is None:
+        raise BundleError(f"{lock_path} の ledgers に {DOCS_REPO} がありません")
     docs_repo = find_repo(DOCS_REPO, src)
-    docs_commit = git(docs_repo, "rev-parse", "HEAD").strip()
+    docs_commit = led["commit"]
     docs_date = check_commit(docs_repo, DOCS_REPO, docs_commit)
-    doc_rows = read_ledger(git(docs_repo, "show", f"{docs_commit}:{DOCS_LEDGER}"),
+    ledger_items = [dict(led, date=docs_date, title=led.get("title", led["name"]))]
+    doc_rows = read_ledger(git(docs_repo, "show", f"{docs_commit}:{led['use']}"),
                            ("id", "category", "title", "fiscal_year", "date", "url", "format", "sha256"),
-                           f"{DOCS_REPO}/{DOCS_LEDGER}")
+                           f"{DOCS_REPO}/{led['use']}")
     gikai_repo, gikai_commit = commit_of[GIKAI_REPO]
     bulletins, photos = gikai_town_urls(gikai_repo, gikai_commit)
     plans_raw = os.path.abspath(args.plans_raw or os.path.join(plans_repo, "sources_raw"))
@@ -1115,7 +1171,7 @@ def build(args):
             raise BundleError(f"{it['dest']} が {owner[it['dest']]} のファイルと重なります")
     print("原典の読み込み元：")
     print(f"  計画の原典：{plans_raw}（{PLANS_REPO} {plans_commit[:12]} の {PLANS_LEDGER}）")
-    print(f"  町の資料：{docs_raw}（{DOCS_REPO} {docs_commit[:12]}（{jp_date(docs_date)}）の {DOCS_LEDGER}）")
+    print(f"  町の資料：{docs_raw}（{DOCS_REPO} {docs_commit[:12]}（{jp_date(docs_date)}）の {led['use']}）")
     print(f"  会議録：{council_pdf}")
     print(f"  議会だより・議員の写真：{town_dir}")
 
@@ -1138,7 +1194,17 @@ def build(args):
         if not args.allow_missing:
             hint = "（議会だよりと議員の写真は --fetch で取れます）" if any(it["kind"] in ("bulletin", "photo") for it in missing) else ""
             raise BundleError(f"手元に無いものが {len(missing)} 件あります{hint}。無いものを飛ばして作るときは --allow-missing を付けてください")
+    for name, root, kinds in ((KIND_NAME["plan"], plans_raw, ("plan",)), (KIND_NAME["doc"], docs_raw, ("doc",)),
+                              (KIND_NAME["council"], council_pdf, ("council",)),
+                              ("議会だより・議員の写真", town_dir, ("bulletin", "photo"))):
+        extra = extra_files(root, {s for it in genten if it["kind"] in kinds for s in it["srcs"]})
+        if extra:
+            print(f"  参考：{name}の読み込み元にある、一覧に無いファイル（写さない）：{len(extra)} 件"
+                  f"（例 {'、'.join(os.path.relpath(x, root) for x in extra[:3])}）")
     counts = summary_counts(genten, present)
+    cat_names, unknown_cats = shiryo_cat_names(bundle, dests.get("hino-shiryo"), doc_rows)
+    if unknown_cats:
+        print(f"  参考：資料の一覧.csv で、町の資料の検索の画面に名前の無い分類は略のまま出す：{'、'.join(unknown_cats)}")
     fmap = file_map(present)
     known = {u for it in genten for u in [it["url"], *it.get("aliases", [])]}
     kind_of_dest = {it["dest"]: it["kind"] for it in present}
@@ -1197,11 +1263,11 @@ def build(args):
     copy_items(out, present)
 
     # 4. はじめにお読みください.txt、資料の一覧.csv、ファイルの一覧.csv
-    readme = readme_text(made, items, counts, (docs_commit, docs_date))
+    readme = readme_text(made, items, counts, ledger_items)
     with open(os.path.join(out, PORTAL_DIR, README_NAME), "wb") as f:
         f.write(b"\xef\xbb\xbf" + readme.encode("utf-8"))
     with open(os.path.join(out, PORTAL_DIR, SHIRYO_LIST_NAME), "wb") as f:
-        f.write(b"\xef\xbb\xbf" + shiryo_list_csv(doc_rows, present).encode("utf-8"))
+        f.write(b"\xef\xbb\xbf" + shiryo_list_csv(doc_rows, present, cat_names).encode("utf-8"))
     csv_text, rows = file_list_csv(out)
     with open(os.path.join(out, PORTAL_DIR, FILELIST_NAME), "wb") as f:
         f.write(b"\xef\xbb\xbf" + csv_text.encode("utf-8"))

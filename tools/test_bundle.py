@@ -234,6 +234,22 @@ class LockTest(unittest.TestCase):
         self.assertEqual(dests["hino-portal"], P)
         self.assertEqual(dests["hino-council-search"], C)
 
+    def test_ledgers(self):
+        lock = bundle.load_lock(os.path.join(bundle.REPO_ROOT, "bundle.lock.json"))
+        led = {r["name"]: r for r in lock["ledgers"]}
+        self.assertEqual(led["hino-town-docs"]["use"], "data/sources.tsv")
+        self.assertNotIn("hino-town-docs", [r["name"] for r in lock["repos"]])
+        for body in ('"ledgers":[{"name":"x","commit":"abc","use":"a"}]',
+                     '"ledgers":[{"name":"x","commit":"%s","use":"a","dest":"%s/x"}]' % ("0" * 40, P),
+                     '"ledgers":[{"name":"a","commit":"%s","use":"a"}]' % ("0" * 40)):
+            with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+                f.write('{"repos":[{"name":"a","commit":"%s","source":".","dest":"%s/a"}],%s}' % ("1" * 40, P, body))
+            try:
+                with self.assertRaises(bundle.BundleError, msg=body):
+                    bundle.load_lock(f.name)
+            finally:
+                os.unlink(f.name)
+
     def test_bad_commit(self):
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
             f.write('{"repos":[{"name":"a","commit":"abc","source":".","dest":"%s/a"}]}' % P)
@@ -397,6 +413,33 @@ class ResolveTest(unittest.TestCase):
             self.assertEqual(bundle.bundled_state(counts)["議員の写真"], "some")
 
 
+class ExtraFilesTest(unittest.TestCase):
+    def test_only_listed_files_are_copied(self):
+        """読み込み元に一覧に無いファイルがあっても、一覧にあるものだけを入れ、余分は数えるだけ"""
+        with tempfile.TemporaryDirectory() as d:
+            raw = os.path.join(d, "sources_raw")
+            write(os.path.join(raw, "yosan-r8-gaiyou.pdf"), PDF)
+            write(os.path.join(raw, "yosan-r8-gaiyou.txt"), b"x")       # 同じ id のほかの拡張子
+            write(os.path.join(raw, "kaiken-20260225-page.html"), b"<html>")  # html の行（入れない形式）
+            write(os.path.join(raw, "old-id.pdf"), PDF)                # 台帳に無い id
+            rows = [{"id": "yosan-r8-gaiyou", "category": "yosan", "url": TOWN + "a.pdf", "format": "pdf",
+                     "sha256": hashlib.sha256(PDF).hexdigest()},
+                    {"id": "kaiken-20260225-page", "category": "kaiken", "url": "https://h/1.html", "format": "html",
+                     "sha256": ""}]
+            items = bundle.doc_items(rows, raw)
+            present, missing, mismatch = bundle.resolve_items(items)
+            self.assertEqual([x["src"] for x in present], [os.path.join(raw, "yosan-r8-gaiyou.pdf")])
+            self.assertEqual((missing, mismatch), ([], []))
+            extra = bundle.extra_files(raw, {s for it in items for s in it["srcs"]})
+            self.assertEqual([os.path.basename(x) for x in extra],
+                             ["kaiken-20260225-page.html", "old-id.pdf", "yosan-r8-gaiyou.txt"])
+            with tempfile.TemporaryDirectory() as out:
+                bundle.copy_items(out, present)
+                got = [os.path.relpath(os.path.join(dp, f), out) for dp, _, fs in os.walk(out) for f in fs]
+                self.assertEqual(got, [os.path.join(P, "原典", "資料", "yosan", "yosan-r8-gaiyou.pdf")])
+            self.assertEqual(bundle.extra_files(os.path.join(d, "nai"), set()), [])
+
+
 class FetchTest(unittest.TestCase):
     def items(self, d, names):
         return [{"kind": "bulletin", "url": TOWN + n, "srcs": [os.path.join(d, "議会だより", n)], "label": n}
@@ -491,12 +534,22 @@ class ListAndReadmeTest(unittest.TestCase):
 
     def test_shiryo_list(self):
         present = [{"kind": "doc", "url": "u1", "dest": f"{P}/原典/資料/yosan/yosan-r8-gaiyou.pdf"}]
-        text = bundle.shiryo_list_csv(self.ROWS, present)
+        names = {"yosan": "予算", "kaiken": "記者会見"}
+        text = bundle.shiryo_list_csv(self.ROWS, present, names)
         lines = text.split("\r\n")
         self.assertEqual(lines[0], "番号,分類,タイトル,年度（西暦）,日付,一式の中のファイル,町のホームページの URL")
-        self.assertEqual(lines[1], "yosan-r8-gaiyou,yosan,令和8年度当初予算の概要,2026,,原典/資料/yosan/yosan-r8-gaiyou.pdf,u1")
-        self.assertEqual(lines[2], 'kaiken-20260225-page,kaiken,"記者会見, 2月",2025,2026-02-25,,u2')
-        self.assertEqual(lines[3], "koho-no790,koho,広報ひの,2026,2026-05,,u3")
+        self.assertEqual(lines[1], "yosan-r8-gaiyou,予算,令和8年度当初予算の概要,2026,,原典/資料/yosan/yosan-r8-gaiyou.pdf,u1")
+        self.assertEqual(lines[2], 'kaiken-20260225-page,記者会見,"記者会見, 2月",2025,2026-02-25,,u2')
+        self.assertEqual(lines[3], "koho-no790,koho,広報ひの,2026,2026-05,,u3")  # 名前の無い分類は略のまま
+
+    def test_shiryo_cat_names(self):
+        js = ('// x\nwindow.SHIRYO={"inputs":{},"cats":[["keikaku","計画"],["yosan","予算"],["koho","広報ひの"]],'
+              '"docs":[{"c":"yosan"}]};').encode()
+        names, unknown = bundle.shiryo_cat_names({f"{P}/hino-shiryo/data/index.js": js}, f"{P}/hino-shiryo",
+                                                 self.ROWS)
+        self.assertEqual(names, {"keikaku": "計画", "yosan": "予算", "koho": "広報ひの"})
+        self.assertEqual(unknown, ["kaiken"])
+        self.assertEqual(bundle.shiryo_cat_names({}, f"{P}/hino-shiryo", self.ROWS[:1]), ({}, ["yosan"]))
 
     ITEMS = [{"name": "hino-portal", "title": "ポータル", "commit": "0" * 40, "date": datetime.date(2026, 11, 10),
               "dest": P},
@@ -506,7 +559,9 @@ class ListAndReadmeTest(unittest.TestCase):
               "date": datetime.date(2026, 11, 10), "dest": C}]
 
     def readme(self, counts):
-        return bundle.readme_text(datetime.date(2026, 11, 11), self.ITEMS, counts, ("3" * 40, datetime.date(2026, 11, 9)))
+        led = [{"name": "hino-town-docs", "title": "町の資料の一覧と原典", "commit": "3" * 40, "use": "data/sources.tsv",
+                "date": datetime.date(2026, 11, 9)}]
+        return bundle.readme_text(datetime.date(2026, 11, 11), self.ITEMS, counts, led)
 
     def test_all(self):
         t = self.readme({"plan": (146, 146), "doc": (1111, 1111), "bulletin": (13, 13), "photo": (14, 14),
@@ -519,7 +574,8 @@ class ListAndReadmeTest(unittest.TestCase):
         self.assertIn("原典/議会だより/：議会だより", t)
         self.assertIn("議事録本体/：会議録の PDF", t)
         self.assertIn("資料の一覧.csv", t)
-        self.assertIn("3" * 40, t)
+        self.assertIn("町の資料の一覧と原典\r\n  リポジトリ：hino-town-docs\r\n  版の番号：" + "3" * 40
+                      + "\r\n  版の日付：2026年11月9日\r\n  使い方：", t)
         self.assertNotRegex(t, "[—―]|台帳")
 
     def test_partial(self):
