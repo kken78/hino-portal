@@ -120,6 +120,14 @@ class NoMarkTest(unittest.TestCase):
         self.assertIn('#sessionTL::before{content:"a\\"b";display:block', css)
         self.assertNotRegex(css, r"font-size:\s*(1[0-3]|[0-9])px")
 
+    def test_note_style(self):
+        css = bundle.no_mark_css([{"selector": ".bchip", "note_before": "#bulletinList", "note": "x",
+                                   "note_style": "color:var(--ink-2);margin:-12px 0 4px"}])
+        self.assertIn("grid-column:1/-1", css)
+        self.assertTrue(css.endswith("color:var(--ink-2);margin:-12px 0 4px}"))
+        with self.assertRaises(bundle.BundleError):
+            bundle.no_mark_css([{"selector": ".a", "note_before": "#a", "note": "x", "note_style": "}x{"}])
+
     def test_empty(self):
         self.assertEqual(bundle.no_mark_css([]), "")
 

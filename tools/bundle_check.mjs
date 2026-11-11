@@ -8,7 +8,12 @@
      - 手元のファイルを読めなかったもの（file: の要求の失敗）
    各ページは load を待ってから 1.5 秒置き、次の順に画面を変えて数える（shared/check_mobile.mjs の --all-hashes と同じ考え方）。
      1. タブ（[role="tab"] と .tabs .tab）を1つずつ押す
-     2. ページの中の a[href^="#"] の名前を集め、location.hash に入れて順に開く
+     2. ページの中の a[href^="#"] の名前を集め、location.hash に入れて順に開く。ただし、同じページの中の場所へ移るだけの
+        # は開かない。見分け方：その名前の id か name を持つ要素がページにあり、かつページとそのページが読む
+        手元の script のどこにも hashchange（onhashchange を含む）の字が無いもの。開いたあとに # が変わっても
+        スクリプトが何もしないので、画面は変わらず、その場所へ移るだけになる（読み込みのときに location.hash を
+        1回だけ読むページもあるが、ここでは読み込み直さずに # を変えるので、その動きは変わらない）。
+        それ以外（名前の要素が無い、またはスクリプトが hashchange を受ける）は開く
    あわせて、次も数える。
      - 印で切れるリンク：幅 1280px と 360px で、タブごとに、「（インターネット）」の印の付くリンク
        （http(s) で始まるもの）のうち、リンクの箱の幅に字が入りきらないもの
@@ -20,7 +25,8 @@
    （無ければ import("playwright")）。CHROMIUM_PATH があれば、そのブラウザを使う（shared/check_mobile.mjs と同じ）。
    終了コード：数え終えたら 0（問題の有無は結果の JSON で返す）、Playwright が無いときは 2。 */
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 const [listPath, outPath] = process.argv.slice(2);
@@ -40,6 +46,18 @@ const { root, pages, timeout = 120 } = JSON.parse(readFileSync(listPath, "utf8")
 const launchOpts = process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {};
 const browser = await chromium.launch(launchOpts);
 const LOCAL = /^(file|data|blob|about):/i;
+const READS_HASH = /hashchange/;
+// ページとそのページが読む手元の script が、# の変わったことを受けるか
+const pageReadsHash = (file) => {
+  const html = readFileSync(file, "utf8");
+  if (READS_HASH.test(html)) return true;
+  for (const m of html.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)) {
+    if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(m[1])) continue;
+    const f = join(dirname(file), decodeURIComponent(m[1].split(/[?#]/)[0]));
+    if (existsSync(f) && READS_HASH.test(readFileSync(f, "utf8"))) return true;
+  }
+  return false;
+};
 const TABS = '[role="tab"], .tabs .tab';
 // 印の付くリンクで、字が入りきらないもの（見えているものだけ）
 const clipped = () => [...document.querySelectorAll('a[href^="http://"], a[href^="https://"], a[href^="//"]')]
@@ -55,7 +73,7 @@ const bandLines = () => {
 const results = [];
 for (const page of pages) {
   const r = { page, requests: [], pageErrors: [], consoleErrors: [], failed: [], loadError: null,
-    clipped: [], bandLines360: 0, tabs: 0, hashes: 0 };
+    clipped: [], bandLines360: 0, tabs: 0, hashes: 0, hashesSkipped: 0 };
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: "block" });
   await ctx.route("**/*", (route) => {
     const u = route.request().url();
@@ -103,8 +121,15 @@ for (const page of pages) {
       await back();
       await clipAt(`タブ${i + 1}`);
     }
-    const hashes = await p.evaluate(() => [...new Set([...document.querySelectorAll('a[href^="#"]')]
-      .map((a) => a.getAttribute("href").slice(1)).filter(Boolean))]);
+    const readsHash = pageReadsHash(join(root, page));
+    const found = await p.evaluate(() => [...new Set([...document.querySelectorAll('a[href^="#"]')]
+      .map((a) => a.getAttribute("href").slice(1)).filter(Boolean))].map((h) => {
+        let t = null;
+        try { const n = decodeURIComponent(h); t = document.getElementById(n) || document.getElementsByName(n)[0]; } catch (e) { /* 読めない名前は開く */ }
+        return [h, !!t];
+      }));
+    const hashes = found.filter(([, inPage]) => readsHash || !inPage).map(([h]) => h);
+    r.hashesSkipped = found.length - hashes.length;
     for (const h of hashes) {
       await p.evaluate((x) => { location.hash = x; }, h);
       await p.waitForTimeout(150);
@@ -119,7 +144,7 @@ for (const page of pages) {
   const sec = ((Date.now() - t0) / 1000).toFixed(1);
   const n = r.requests.length + r.pageErrors.length + r.consoleErrors.length + r.failed.length + (r.loadError ? 1 : 0)
     + r.clipped.length;
-  console.log(`  ${n ? "問題" : "OK"}  ${page}（タブ ${r.tabs}、# の画面 ${r.hashes}、帯 ${r.bandLines360} 行、${sec} 秒）`);
+  console.log(`  ${n ? "問題" : "OK"}  ${page}（タブ ${r.tabs}、# の画面 ${r.hashes}、開かなかったページの中の場所への # ${r.hashesSkipped}、帯 ${r.bandLines360} 行、${sec} 秒）`);
   results.push(r);
   await ctx.close();
 }

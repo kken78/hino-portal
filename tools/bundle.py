@@ -13,7 +13,8 @@
   4. 全ページの上に帯を差し込み、インターネットにつながるときだけ開けるリンクのあとに「（インターネット）」を付ける CSS を足す。
   5. はじめにお読みください.txt と ファイルの一覧.csv を書く。
   6. 渡す前の検査（11.5）：実行ファイル類・マクロ・autorun.inf、手元のリンク切れ、外からの読み込み、
-     実ブラウザ（tools/bundle_check.mjs。Playwright）で全ページを file:// で開き、タブと # の画面もたどったときの
+     実ブラウザ（tools/bundle_check.mjs。Playwright）で全ページを file:// で開き、タブと # の画面（ページの中の場所へ
+     移るだけの # は除く）もたどったときの
      外への通信と JavaScript のエラー、印で字が切れるリンク、幅 360px での帯の行数。
      1つでもあれば終了コード 1。
 
@@ -304,8 +305,10 @@ def css_string(s):
 
 def no_mark_css(rules):
     """lock の no_mark から、印を出さない部品と、その代わりに1回だけ書く文の CSS を作る。
-    rules：[{"selector": 印を出さないリンク, "note_before": 文を前に置く要素, "note": 文}]。
-    幅の決まった部品（札など）の中のリンクは、印を足すと字が切れるため。"""
+    rules：[{"selector": 印を出さないリンク, "note_before": 文を前に置く要素, "note": 文,
+             "note_style": 文の色などをまわりの説明の文に合わせる CSS の宣言（任意）}]。
+    幅の決まった部品（札など）の中のリンクは、印を足すと字が切れたり別の行に出たりするため。
+    文を置く要素がグリッドのときも1行を占めるように grid-column を付ける。"""
     css = []
     for r in rules:
         sel = r["selector"]
@@ -316,8 +319,12 @@ def no_mark_css(rules):
             nb = r["note_before"]
             if not re.fullmatch(r"[A-Za-z0-9_.#\-]+", nb):
                 raise BundleError(f"no_mark の note_before が正しくありません：{nb}")
-            css.append(f"{nb}::before{{content:{css_string(r['note'])};display:block;"
-                       "font-size:var(--portal-fs-sub,14px);font-weight:400;line-height:1.6;margin:0 0 8px}")
+            style = r.get("note_style", "")
+            if not re.fullmatch(r"[A-Za-z0-9_.#\-:;,()% ]*", style):
+                raise BundleError(f"no_mark の note_style が正しくありません：{style}")
+            css.append(f"{nb}::before{{content:{css_string(r['note'])};display:block;grid-column:1/-1;"
+                       "font-size:var(--portal-fs-sub,14px);font-weight:400;line-height:1.6;margin:0 0 8px;"
+                       + style + "}")
     return "".join(css)
 
 
@@ -828,7 +835,8 @@ def check(out, args):
     band = max((x["bandLines360"] for x in res), default=0)
     wide_band = [x for x in res if x["bandLines360"] > BAND_MAX_LINES]
     print(f"  (c) 実ブラウザ（file://）で開いたページ：{len(res)} / {len(pages)}"
-          f"（押したタブ {sum(x['tabs'] for x in res)}、開いた # の画面 {sum(x['hashes'] for x in res)}）")
+          f"（押したタブ {sum(x['tabs'] for x in res)}、開いた # の画面 {sum(x['hashes'] for x in res)}、"
+          f"開かなかったページの中の場所への # {sum(x.get('hashesSkipped', 0) for x in res)}）")
     print(f"      外への通信：{req} 件")
     print(f"      JavaScript のエラー：{jserr} 件")
     print(f"      コンソールのエラー：{con} 件")

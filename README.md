@@ -59,7 +59,7 @@ PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.
 
 出力先に `日野町データポータル_手元版/` と `日野町議会_会議録検索/` ができます。前に作ったものがあるときは `--replace` を付けると消して作り直します。作った日は既定で今日で、`--date 2026-11-11` で指定できます。
 
-3. 終わりに渡す前の検査（DESIGN.md 11.5）の結果が出ます。終了コードは、すべて通れば 0、問題があれば 1、作れなかったとき（版が手元に無いなど）は 2、実ブラウザの検査をしなかったとき（`--no-browser` か Playwright が無い）は 3 です。作った一式の検査だけをやり直すときは `--check-only` を付けます。
+3. 終わりに渡す前の検査（DESIGN.md 11.5）の結果が出ます。終了コードは、すべて通れば 0、問題があれば 1、作れなかったとき（版が手元に無いなど）は 2、実ブラウザの検査をしなかったとき（`--no-browser` か Playwright が無い）は 3 です。作った一式の検査だけをやり直すときは `--check-only` を付けます。いまは原典の PDF と、議会だより・一般質問（council-dashboard）の議員の写真を一式に入れる処理がまだ無いので、「議員別」のタブが町のホームページの写真を読む通信が外への通信として数えられ、検査は終了コード 1 で止まります。
 
 ```sh
 PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.mjs \

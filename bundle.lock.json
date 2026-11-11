@@ -1,5 +1,5 @@
 {
-  "note": "手元版（DESIGN.md 11章）に束ねる版。版を上げるときは commit を直す PR を出す。source は公開しているフォルダ（リポジトリの中のパス）、dest は束ね先（出力先の中のパス）、exclude は束ねないファイル（source からのパスの glob。tools/bundle.py の既定の除外に足す）。make は、公開しているフォルダをそのまま写さずに道具で作るもの。no_mark は、幅の決まった部品の中にあって「（インターネット）」の印を付けると字が切れるリンク（selector）と、その代わりに1回だけ書く文（note を note_before の要素の前に置く）。",
+  "note": "手元版（DESIGN.md 11章）に束ねる版。版を上げるときは commit を直す PR を出す。source は公開しているフォルダ（リポジトリの中のパス）、dest は束ね先（出力先の中のパス）、exclude は束ねないファイル（source からのパスの glob。tools/bundle.py の既定の除外に足す）。make は、公開しているフォルダをそのまま写さずに道具で作るもの。no_mark は、幅の決まった部品の中にあって「（インターネット）」の印を付けると字が切れるリンク（selector）と、その代わりに1回だけ書く文（note を note_before の要素の前に置く。note_style で色などをまわりの説明の文に合わせる）。",
   "repos": [
     {
       "name": "hino-portal",
@@ -95,7 +95,14 @@
         {
           "selector": ".tlcap",
           "note_before": "#sessionTL",
-          "note": "号の名前は、議会だよりの PDF へのリンクです。インターネットにつながるときだけ開けます。"
+          "note": "号の名前は、議会だよりの PDF へのリンクです。PDF は、インターネットにつながるときだけ開けます。",
+          "note_style": "color:var(--ink-2)"
+        },
+        {
+          "selector": ".bchip",
+          "note_before": "#bulletinList",
+          "note": "PDF は、インターネットにつながるときだけ開けます。",
+          "note_style": "color:var(--ink-2);margin:-12px 0 4px"
         }
       ]
     },
