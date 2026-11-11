@@ -1,0 +1,132 @@
+{
+  "note": "手元版（DESIGN.md 11章）に束ねる版。版を上げるときは commit を直す PR を出す。source は公開しているフォルダ（リポジトリの中のパス）、dest は束ね先（出力先の中のパス）、exclude は束ねないファイル（source からのパスの glob。tools/bundle.py の既定の除外に足す）。make は、公開しているフォルダをそのまま写さずに道具で作るもの。no_mark は、幅の決まった部品の中にあって「（インターネット）」の印を付けると字が切れるリンク（selector）と、その代わりに1回だけ書く文（note を note_before の要素の前に置く。note_style で色などをまわりの説明の文に合わせる）。",
+  "repos": [
+    {
+      "name": "hino-portal",
+      "title": "日野町データポータル（ポータル）",
+      "commit": "3d3826ac10c8543ff03458c6c6d7f60289906eaa",
+      "published": "main の直下（index.html と .nojekyll がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版",
+      "exclude": [
+        "shared/**",
+        "docs/**",
+        "assets/**"
+      ]
+    },
+    {
+      "name": "shiga-hino-plans",
+      "title": "計画ライブラリ",
+      "commit": "0ce4a47a0f839e9cfdaabbfd83de3897317c9f31",
+      "published": "main の docs/（DESIGN.md のフォルダの図に「docs/ GitHub Pages 公開ルート」）",
+      "source": "docs",
+      "dest": "日野町データポータル_手元版/shiga-hino-plans",
+      "exclude": [
+        "plans/_*"
+      ]
+    },
+    {
+      "name": "hino-plan-dashboard",
+      "title": "第6次総合計画 指標と事業費",
+      "commit": "f269c502614b4e03e267b037548bdf95e47b829c",
+      "published": "main の直下（index.html と .nojekyll がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版/hino-plan-dashboard",
+      "exclude": []
+    },
+    {
+      "name": "hino-zaisei",
+      "title": "予算と決算 町の財政",
+      "commit": "101af5382921006ddceba70d104b28e755cad41e",
+      "published": "main の直下（index.html と .nojekyll がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版/hino-zaisei",
+      "exclude": []
+    },
+    {
+      "name": "hino-shisan",
+      "title": "固定資産台帳 町の資産",
+      "commit": "0cc4802656cc99246215a39eda0762723fc7d1d5",
+      "published": "main の直下（index.html がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版/hino-shisan",
+      "exclude": []
+    },
+    {
+      "name": "hino-population",
+      "title": "地区別人口",
+      "commit": "b41cce1b861c06db94c41e7ade40fc2b0552b35f",
+      "published": "main の直下（index.html と .nojekyll がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版/hino-population",
+      "exclude": []
+    },
+    {
+      "name": "hino-dashboard",
+      "title": "日野のすがた",
+      "commit": "c662e516b026e991212263012a1481cade83d64b",
+      "published": "main の直下（index.html がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版/hino-dashboard",
+      "exclude": []
+    },
+    {
+      "name": "choisoko-hino-dashboard",
+      "title": "チョイソコひの 利用状況",
+      "commit": "f6e37927f2df03a83018994cd5aec5354ea32b11",
+      "published": "main の直下（index.html がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版/choisoko-hino-dashboard",
+      "exclude": []
+    },
+    {
+      "name": "council-dashboard",
+      "title": "議会だより・一般質問",
+      "commit": "cea6a76f5539a3fb020d2d7ec233767ac4474032",
+      "published": "GitHub Actions（.github/workflows/build.yml が build.py で docs/ を作り直して公開する。リポジトリの docs/ と作り直したものの違いは、作った日の2か所だけ）",
+      "source": "docs",
+      "dest": "日野町データポータル_手元版/council-dashboard",
+      "exclude": [],
+      "extra": [
+        "LICENSE",
+        "LICENSE-DATA.md"
+      ],
+      "no_mark": [
+        {
+          "selector": ".tlcap",
+          "note_before": "#sessionTL",
+          "note": "号の名前は、議会だよりの PDF へのリンクです。PDF は、インターネットにつながるときだけ開けます。",
+          "note_style": "color:var(--ink-2)"
+        },
+        {
+          "selector": ".bchip",
+          "note_before": "#bulletinList",
+          "note": "PDF は、インターネットにつながるときだけ開けます。",
+          "note_style": "color:var(--ink-2);margin:-12px 0 4px"
+        }
+      ]
+    },
+    {
+      "name": "hino-shiryo",
+      "title": "町の資料の検索",
+      "commit": "510ce35b5048a16b2fca90d2c5c4ca60a320e699",
+      "published": "main の直下（index.html がリポジトリの直下にあり、公開の作業の手順は無い）",
+      "source": ".",
+      "dest": "日野町データポータル_手元版/hino-shiryo",
+      "exclude": []
+    },
+    {
+      "name": "hino-council-search",
+      "title": "会議録 横断検索",
+      "commit": "f8b923593e3db2cc320d85991b9b8e680b59e0dc",
+      "published": "GitHub Actions（.github/workflows/build-deploy.yml が scripts/build.mjs で作る dist/online を公開する）。手元版には、同じ scripts/build.mjs が作る配布用の HTML（dist/<ui.offline_file>）を使う",
+      "source": ".",
+      "dest": "日野町議会_会議録検索",
+      "make": "hino-council-search-offline",
+      "extra": [
+        "LICENSE",
+        "LICENSE-DATA.md"
+      ]
+    }
+  ]
+}
