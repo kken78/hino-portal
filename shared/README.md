@@ -8,7 +8,7 @@
 | header.html | 共通の見出し（名前・「非公式」の印・分野のナビ） | `<body>` の最初に `<!-- portal-shared:header start -->…<!-- portal-shared:header end -->` として写す。いまの分野のリンクに `aria-current="page"` を付ける（1つだけ） |
 | siblings-plan.html・siblings-stat.html | 分野の中のページの一覧（2.3） | ページの見出しの中（`.portal-page` の最後）に `<!-- portal-shared:siblings start -->…end -->` として写す。いま開いているページは `<a href="…">題</a>` を `<span aria-current="page">題</span>` に替える |
 | footer.html | フッターの型（2.5 の7項目） | `<!-- portal-shared:footer start -->…end -->` として置き、`{{…}}` をページの中身に替える。項目の順は変えない。当てはまらない項目（ポータルのトップの「出典」など）は飛ばしてよい。「このページについて」の最初の文と「注意」の文は変えない |
-| check.py | 上が正本と同じかと、文字の大きさ（DESIGN.md 5.2）・表記・太さ・外部からの読み込みを確かめる静的検査 | 各リポジトリの CI で、hino-portal を浅く取ってきて `python3 hino-portal/shared/check.py <HTML>` を走らせる（下）。共通の部品を持たない議会系のページは `--no-shared` を付ける |
+| check.py | 上が正本と同じかと、文字の大きさ（DESIGN.md 5.2）・表記・太さ・外部からの読み込みを確かめる静的検査 | 各リポジトリの CI で、hino-portal を浅く取ってきて `python3 hino-portal/shared/check.py <HTML>` を走らせる（下）。共通の部品を持たない議会系のページは `--gikai` を付ける |
 | apply.py | 各ページの共通の部品のブロックを、正本で置き換える道具（DESIGN.md 9.2） | 各リポジトリで `python3 <hino-portal>/shared/apply.py <HTML>` を走らせ、書き換えたものをそのリポジトリでコミットする（下の「共通の部品を写す」） |
 | check_mobile.mjs | 実ブラウザで、文字の実寸が 14px 以上か、ページが横にはみ出さないかを確かめる検査 | 各リポジトリの CI で `node hino-portal/shared/check_mobile.mjs <HTML>` を走らせる（下）。Playwright が要る |
 
@@ -46,6 +46,8 @@ check.py は、`lang`・`<title>` の形・共通の部品の写し・文字の�
 
 共通の部品を持たないページ（議会系の council-dashboard・hino-council-search。DESIGN.md 8章）では `--no-shared` を付ける。`<title>` の形と、共通の部品の4つのブロック（css・header・siblings・footer）の検査を外し、`lang` と文字の大きさだけを確かめる。
 
+議会系の2つの CI では `--gikai` を付ける（2026-11-11。DESIGN.md 9.1）。`--no-shared` の働きに加えて、8章で共通とした項目（位置づけの文がページの上とフッターの2か所にあること、ポータルへの戻りリンク、「くわしく」「こちら」・ダッシュ・絵文字が無いこと、新しいタブで開くリンクの印）を確かめる。文字の太さ・色・増減の印・年度の略記は見ない。
+
 check.py の文字の大きさの検査は、shiga-hino-plans の validate.mjs の文字の規則（7）（8）を写したもので、生成物の HTML の中の次を見る。
 
 - 見るもの：`<style>` の中の `font-size:` の宣言、`style` 属性の `font-size`、`font-size="…"` 属性（SVG）、トークン `--fs*`・`--portal-fs*` の定義（`@media` の中の上書きを含む）
@@ -54,7 +56,7 @@ check.py の文字の大きさの検査は、shiga-hino-plans の validate.mjs �
 - Chart.js を読み込むページ（`src` に chart を含む `<script>` か `new Chart(` があるページ）：`Chart.defaults.font.size` を 14 以上に決めていること（Chart.js の既定は 12px）、`font:{size:N}` の N と canvas の `ctx.font` の px が 14 以上であること
 - 見ないもの：ページの外の .js ファイルが実行時に作る文字（実寸の検査で見る）。canvas に描かれた文字の実寸（測れないので、上の Chart.js の項で見る）
 
-`python3 shared/check.py --selftest` で、見本63件が見本どおりに判定されるかを確かめられる。内訳は、文字の大きさの通る見本1つと通らない見本19（12px の直接の指定、`<small>`、em、%、clamp の最小値が 12px、Chart.js の size:12 など）、表記・太さ・外部からの読み込みの通る見本1つと通らない見本28（下）、指定の見本14（指定が無くても `--fonts` でも文字の検査が動くこと、`--no-shared` で `<title>` の形と共通の部品の検査が外れ、文字の検査は残ること、`--hyoki` で表記と太さの検査が加わること、外部からの読み込みが既定は警告で `--strict-external` では誤りになること）。
+`python3 shared/check.py --selftest` で、見本67件が見本どおりに判定されるかを確かめられる。内訳は、文字の大きさの通る見本1つと通らない見本19（12px の直接の指定、`<small>`、em、%、clamp の最小値が 12px、Chart.js の size:12 など）、表記・太さ・外部からの読み込みの通る見本1つと通らない見本28（下）、議会系の見本4つ（`--gikai`。通る見本と、位置づけの文が1か所・戻りリンクが無い・絵文字と「こちら」）、指定の見本14（指定が無くても `--fonts` でも文字の検査が動くこと、`--no-shared` で `<title>` の形と共通の部品の検査が外れ、文字の検査は残ること、`--hyoki` で表記と太さの検査が加わること、外部からの読み込みが既定は警告で `--strict-external` では誤りになること）。
 
 ## 表記・太さ・外部からの読み込み（DESIGN.md 3.3・4.2・5.2・5.6・6.4・9.1）
 

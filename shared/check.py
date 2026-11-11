@@ -34,6 +34,9 @@
      - 「R」＋数字＋（年・.・〜）の形があるページに「R＝令和」か「R は令和」の字がある
   9. 太さ（DESIGN.md 5.2。--hyoki のときだけ）。<style> と style 属性の font-weight と、font の一括指定の太さが
      400・700・normal・bold・inherit・800 のどれか（800 は数字の札の主の値に限るが、判定できないので通す）。トークンの参照はたどる
+  11. 議会系のページの共通の決まり（DESIGN.md 8章。--gikai のときだけ）。位置づけの文が2か所以上（上とフッター）、
+     ポータルへの戻りリンク、「くわしく」「こちら」とダッシュ（——）・絵文字が無いこと、新しいタブの印（8 と同じ）。
+     文字の太さ・色・増減の印・年度の略記は見ない（議会系は構造と配色を独立させるため）
   10. 外部からの読み込み（DESIGN.md 4.2）。<script src>・<link href>（rel が canonical・alternate のものを除く）・@import・url(…)・<img src> の
      http(s):// か // で始まる URL。既定は警告（終了コードを変えない）。--strict-external で誤りにする
      警告は「  警告：」で始まる行に出す（各リポジトリの CI が「  - 」で始まる行を問題として数えているため）
@@ -43,6 +46,7 @@
 --no-shared：共通の部品を持たないページ（議会系の council-dashboard・hino-council-search）のための指定。
   2 の <title> の形と、3〜6 の共通の部品（css・header・siblings・footer のブロック）の検査を外す。1 の lang と 7 の文字の大きさは行う。
 --hyoki：8 の表記と 9 の太さの検査を行う。各リポジトリの段階4 の PR が出そろうまでは、付けたときだけ行う（出そろったら既定にする。DESIGN.md 9.1）。
+--gikai：議会系の2つ（council-dashboard・hino-council-search）のための指定。--no-shared の働きに、11 の検査を加える。
 --strict-external：10 の外部からの読み込みを、警告でなく誤りにする（段階5 で CDN を同梱に替えたあとに CI に付ける）。
 --selftest：文字の大きさ・表記・太さ・外部からの読み込みの検査を通る見本と通らない見本で、既定で文字の検査が動くこと、
   --no-shared で <title> と共通の部品の検査が外れること、--hyoki と --strict-external の働きを見本で確かめる（終了コード 0 なら見本どおり）。
@@ -68,11 +72,11 @@ def block(doc, name):
 def text_of(fragment):
     return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", fragment))).strip()
 
-def check(path, shared, fonts=True, shared_parts=True, hyoki=False, strict_external=False):
+def check(path, shared, fonts=True, shared_parts=True, hyoki=False, strict_external=False, gikai=False):
     doc = open(path, encoding="utf-8").read()
-    return check_doc(doc, shared, fonts, shared_parts, hyoki, strict_external)
+    return check_doc(doc, shared, fonts, shared_parts, hyoki, strict_external, gikai)
 
-def check_doc(doc, shared, fonts=True, shared_parts=True, hyoki=False, strict_external=False):
+def check_doc(doc, shared, fonts=True, shared_parts=True, hyoki=False, strict_external=False, gikai=False):
     """戻り値は (誤り, 警告)。警告は終了コードを変えない"""
     problems, warnings = [], []
     # 1 lang
@@ -87,6 +91,9 @@ def check_doc(doc, shared, fonts=True, shared_parts=True, hyoki=False, strict_ex
     if hyoki:
         problems.extend(hyoki_problems(doc))
         problems.extend(weight_problems(doc))
+    # 11 議会系のページの共通の決まり（--gikai のときだけ。8章）
+    if gikai:
+        problems.extend(gikai_problems(doc))
     # 10 外部からの読み込み（既定は警告。--strict-external で誤り）
     ext = external_findings(doc)
     if ext:
@@ -326,6 +333,26 @@ R_YEAR = r"(?<![A-Za-zＡ-Ｚａ-ｚ])R[0-9０-９]+(?:年|\.|〜|～)"
 R_NOTE = r"R\s*[＝=]\s*令和|R\s*は令和"
 NEW_TAB = "新しいタブで開きます"
 
+def new_tab_problems(doc):
+    """target="_blank" の <a> に「新しいタブで開きます」の字があること（5.6）"""
+    problems = []
+    sk = _skeleton(doc)
+    bad = []
+    for m in re.finditer(r"<a\b([^>]*)>(.*?)</a\s*>", sk, re.S | re.I):
+        attrs, inner = m.group(1), m.group(2)
+        if not re.search(r"""\btarget\s*=\s*(?:"_blank"|'_blank'|_blank\b)""", attrs, re.I):
+            continue
+        words = [html.unescape(re.sub(r"<[^>]+>", "", inner))]
+        words += [v for k, v in [(x.group(1).lower(), html.unescape(x.group(2) if x.group(2) is not None else x.group(3)))
+                                 for x in ATTR_TEXT.finditer(" " + attrs)] if k in ("aria-label", "title")]
+        for t in re.finditer(r"<[a-zA-Z][^>]*>", inner):
+            words.extend(_attr_texts(t.group(0)))
+        if not any(NEW_TAB in w for w in words):
+            bad.append(re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", inner))).strip()[:20])
+    if bad:
+        problems.append(f"表記：target=\"_blank\" のリンクに「{NEW_TAB}」の字が無い（{len(bad)} か所。例 {'、'.join('「' + b + '」' for b in bad[:3])}）（5.6）")
+    return problems
+
 def hyoki_problems(doc):
     """8 表記（DESIGN.md 3.3・5.6・6.4）"""
     problems = []
@@ -342,24 +369,38 @@ def hyoki_problems(doc):
         n, ex = _examples(text, re.escape(w))
         if n:
             problems.append(f"表記：「{w}」がある（{n} か所。例 {ex}）（5.6・6.2）")
-    sk = _skeleton(doc)
-    bad = []
-    for m in re.finditer(r"<a\b([^>]*)>(.*?)</a\s*>", sk, re.S | re.I):
-        attrs, inner = m.group(1), m.group(2)
-        if not re.search(r"""\btarget\s*=\s*(?:"_blank"|'_blank'|_blank\b)""", attrs, re.I):
-            continue
-        words = [html.unescape(re.sub(r"<[^>]+>", "", inner))]
-        words += [v for k, v in [(x.group(1).lower(), html.unescape(x.group(2) if x.group(2) is not None else x.group(3)))
-                                 for x in ATTR_TEXT.finditer(" " + attrs)] if k in ("aria-label", "title")]
-        for t in re.finditer(r"<[a-zA-Z][^>]*>", inner):
-            words.extend(_attr_texts(t.group(0)))
-        if not any(NEW_TAB in w for w in words):
-            bad.append(re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", inner))).strip()[:20])
-    if bad:
-        problems.append(f"表記：target=\"_blank\" のリンクに「{NEW_TAB}」の字が無い（{len(bad)} か所。例 {'、'.join('「' + b + '」' for b in bad[:3])}）（5.6）")
+    problems.extend(new_tab_problems(doc))
     n, ex = _examples(text, R_YEAR)
     if n and not re.search(R_NOTE, text):
         problems.append(f"表記：R＋数字の年度の略記がある（{n} か所。例 {ex}）のに「R＝令和」の注が無い（6.4）")
+    return problems
+
+GIKAI_POSITION = "このページは一個人による提案・試作です。日野町議会・議会広報委員会の公式な成果物ではありません。正確な内容は議会だより・会議録の原本でご確認ください。"
+PORTAL_URL = "https://kken78.github.io/hino-portal/"
+EMOJI = r"[\U0001F300-\U0001FAFF\u2600-\u26FF]"   # 閉じるの ✕ などの記号（U+2700 台）は見ない
+
+def gikai_problems(doc):
+    """11 議会系のページの共通の決まり（DESIGN.md 8章。--gikai のときだけ）"""
+    problems = []
+    flat = re.sub(r"\s+", "", html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<(script|style)\b.*?</\1\s*>", " ", doc, flags=re.S | re.I))))
+    n = flat.count(re.sub(r"\s+", "", GIKAI_POSITION))
+    if n < 2:
+        problems.append(f"議会：位置づけの文が {n} か所（ページの上とフッターの2か所に要る。8章）")
+    if not re.search(r"""<a\b[^>]*href\s*=\s*["']""" + re.escape(PORTAL_URL), doc, re.I):
+        problems.append(f"議会：ポータルへの戻りリンク（{PORTAL_URL}）が無い（8章）")
+    doc_q = re.sub(r"<q\b[^>]*>.*?</q\s*>", " ", doc, flags=re.S | re.I)
+    text = body_text(doc_q)
+    for w in ("くわしく", "こちら"):
+        n, ex = _examples(text, re.escape(w))
+        if n:
+            problems.append(f"表記：「{w}」がある（{n} か所。例 {ex}）（5.6・7章）")
+    n, ex = _examples(text, "——")
+    if n:
+        problems.append(f"文体：ダッシュ（——）がある（{n} か所。例 {ex}）（7章）")
+    n, ex = _examples(text, EMOJI)
+    if n:
+        problems.append(f"文体：絵文字がある（{n} か所。例 {ex}）（7章）")
+    problems.extend(new_tab_problems(doc))
     return problems
 
 WEIGHT_OK = {"400", "700", "800", "normal", "bold", "inherit"}
@@ -624,15 +665,29 @@ def selftest():
         else:
             bad += 1
             print(f"通らない見本「{name}」：問題 {len(ps)} 件で、見本の1件と違う {ps}（誤り）")
+    # 11 議会系の共通の決まり（--gikai）
+    gp = GIKAI_POSITION
+    gk_ok = f'<html lang="ja"><body><p>{gp}</p><a href="{PORTAL_URL}">日野町データポータル</a><footer>{gp}</footer></body></html>'
+    gk_cases = [("議会の通る見本", gk_ok, 0),
+                ("議会の位置づけの文が1か所", gk_ok.replace(f"<footer>{gp}</footer>", ""), 1),
+                ("議会の戻りリンクが無い", gk_ok.replace(PORTAL_URL, "https://example.org/"), 1),
+                ("議会の絵文字と「こちら」", gk_ok.replace("</body>", "<p>📊 こちら</p></body>"), 2)]
+    for name, d, want in gk_cases:
+        ps = gikai_problems(d)
+        if len(ps) == want:
+            print(f"見本「{name}」：問題 {len(ps)} 件（正しい）")
+        else:
+            bad += 1
+            print(f"見本「{name}」：問題 {len(ps)} 件で、見本の {want} 件と違う {ps}（誤り）")
     obad, on = selftest_options()
     bad += obad
-    total = 1 + len(SELFTEST_NG) + 1 + len(SELFTEST_HYOKI_NG) + on
+    total = 1 + len(SELFTEST_NG) + 1 + len(SELFTEST_HYOKI_NG) + len(gk_cases) + on
     print(f"見本 {total} 件のうち、見本どおりでないもの {bad} 件")
     return 1 if bad else 0
 
 def parse_args(argv):
     o = {"selftest": False, "shared": HERE, "fonts": True, "shared_parts": True, "hyoki": False,
-         "strict_external": False, "files": []}
+         "strict_external": False, "gikai": False, "files": []}
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -644,6 +699,8 @@ def parse_args(argv):
             o["shared_parts"] = False; i += 1
         elif a == "--hyoki":
             o["hyoki"] = True; i += 1
+        elif a == "--gikai":
+            o["gikai"] = True; o["shared_parts"] = False; i += 1
         elif a == "--strict-external":
             o["strict_external"] = True; i += 1
         elif a == "--shared":
@@ -661,7 +718,7 @@ def main(argv):
         print(__doc__); return 2
     bad = 0
     for f in files:
-        ps, ws = check(f, shared, fonts, o["shared_parts"], o["hyoki"], o["strict_external"])
+        ps, ws = check(f, shared, fonts, o["shared_parts"], o["hyoki"], o["strict_external"], o["gikai"])
         if ps:
             bad += 1
             print(f"{f}：問題 {len(ps)} 件")
@@ -671,6 +728,8 @@ def main(argv):
             seen = "共通の部品は正本と同じ。文字の大きさは 14px 以上" if o["shared_parts"] else "文字の大きさは 14px 以上"
             if o["hyoki"]:
                 seen += "。表記と太さに問題なし"
+            if o["gikai"]:
+                seen += "。議会系の共通の決まり（位置づけの文・戻りリンク・文体・新しいタブの印）に問題なし"
             if not o["shared_parts"]:
                 seen += "（--no-shared のため、<title> の形と共通の部品は見ていない）"
             print(f"{f}：{seen}")
