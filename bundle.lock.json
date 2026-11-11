@@ -90,7 +90,7 @@
     {
       "name": "council-dashboard",
       "title": "議会だより・一般質問",
-      "commit": "cea6a76f5539a3fb020d2d7ec233767ac4474032",
+      "commit": "81216f119160360ee284c6bfb814c0ec7e697992",
       "published": "GitHub Actions（.github/workflows/build.yml が build.py で docs/ を作り直して公開する。リポジトリの docs/ と作り直したものの違いは、作った日の2か所だけ）",
       "source": "docs",
       "dest": "日野町データポータル_手元版/council-dashboard",
