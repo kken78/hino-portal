@@ -114,7 +114,7 @@ main{padding:36px 0 0}
 <!-- portal-shared:header start -->
 <header class="portal-head"><div class="portal-wrap">
 <a class="portal-brand" href="https://kken78.github.io/hino-portal/"><svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="14" width="24" height="4" rx="2" fill="#1E4E9C"/><rect x="4" y="8" width="18" height="4" rx="2" fill="#3B6FBF"/><rect x="8" y="2" width="10" height="4" rx="2" fill="#C33D2E"/></svg><span class="portal-name">日野町データポータル</span><span class="portal-tag">非公式</span></a>
-<nav class="portal-areas" aria-label="分野"><a href="https://kken78.github.io/hino-portal/" aria-current="page">トップ</a><a href="https://kken78.github.io/hino-portal/#g-plan">計画と予算</a><a href="https://kken78.github.io/hino-portal/#g-stat">統計とくらし</a><a href="https://kken78.github.io/hino-portal/#g-council">議会</a></nav>
+<nav class="portal-areas" aria-label="分野"><a href="https://kken78.github.io/hino-portal/" aria-current="page">トップ</a><a href="https://kken78.github.io/hino-portal/#g-plan">計画と予算</a><a href="https://kken78.github.io/hino-portal/#g-stat">統計とくらし</a><a href="https://kken78.github.io/hino-portal/#g-council">議会</a><a href="https://kken78.github.io/hino-portal/#g-shiryo">資料</a></nav>
 </div></header>
 <!-- portal-shared:header end -->
 
@@ -212,6 +212,20 @@ main{padding:36px 0 0}
 </div>
 </section>
 
+<section class="group" aria-labelledby="g-shiryo">
+<div class="g-head">
+<h2 id="g-shiryo">資料</h2>
+<p>町が公開している資料を、分野をまたいで探す。</p>
+</div>
+<div class="cards two">
+<a class="card" href="https://kken78.github.io/hino-shiryo/" data-site="shiryo">
+<h3>町の資料の検索</h3>
+<p>計画、予算・決算、広報ひの、記者会見などの本文から、言葉を入れて資料とページを探せます。</p>
+<span class="src">出典：日野町ホームページで公開されている資料</span>
+</a>
+</div>
+</section>
+
 </div>
 </main>
 
@@ -232,7 +246,8 @@ const SITES = {
   plans: 'https://kken78.github.io/shiga-hino-plans/',
   budget: 'https://kken78.github.io/hino-zaisei/',
   shisan: 'https://kken78.github.io/hino-shisan/',
-  population: 'https://kken78.github.io/hino-population/'
+  population: 'https://kken78.github.io/hino-population/',
+  shiryo: 'https://kken78.github.io/hino-shiryo/'
 };
 document.querySelectorAll('[data-site]').forEach(function(a){
   var k = a.getAttribute('data-site');

@@ -15,6 +15,7 @@ https://kken78.github.io/hino-portal/
 | 統計・くらし | 地区別人口 | [hino-population](https://github.com/kken78/hino-population) |
 | 統計・くらし | 日野のすがた | [hino-dashboard](https://github.com/kken78/hino-dashboard) |
 | 統計・くらし | チョイソコひの 利用状況 | [choisoko-hino-dashboard](https://github.com/kken78/choisoko-hino-dashboard) |
+| 資料 | 町の資料の検索 | [hino-shiryo](https://github.com/kken78/hino-shiryo) |
 
 ## 構成
 
