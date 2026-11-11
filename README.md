@@ -35,6 +35,45 @@ SNS で共有したときに出る画像は `og.png`（1200×630）です。編�
 3. `tools/out/` の svg を、Noto Sans CJK JP を入れた環境で 1200×630 の PNG に書き出す。
 4. このリポジトリの分は `tools/out/hino-portal.svg` を `assets/og.svg` に、書き出した PNG を `og.png` に置き換える。他のリポジトリの分は、それぞれのリポジトリの og.svg と og.png を置き換える。
 
+## 手元版の作り方
+
+インターネットにつながらない環境で使う一式（手元版。決まりは DESIGN.md 11章）は、`tools/bundle.py` で作ります。各リポジトリの公開しているページを、`bundle.lock.json` に書いた版で束ね、リンクを一式の中への相対のリンクに書き換え、各ページの上に手元版の帯を入れます。各リポジトリのファイルは変えません。
+
+要るもの：Python 3（標準ライブラリだけ）、git、Node.js（会議録 横断検索を作るのと、実ブラウザでの検査に使う）、Playwright（置き方は `shared/README.md`）。
+
+1. 各リポジトリを同じフォルダに取り出す（既定は hino-portal の親のフォルダ。ほかの場所なら `--src` で指定する）。
+
+```sh
+cd ~/GitHub
+for r in shiga-hino-plans hino-plan-dashboard hino-zaisei hino-shisan hino-population hino-dashboard choisoko-hino-dashboard council-dashboard hino-shiryo hino-council-search; do
+  git clone --depth 1 https://github.com/kken78/$r
+done
+```
+
+2. 束ねる。出力先はリポジトリの外にする。原典の PDF を入れる処理はまだ無いので、`--allow-missing` を付ける。
+
+```sh
+PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.mjs \
+  python3 ~/GitHub/hino-portal/tools/bundle.py --out ~/temoto --allow-missing
+```
+
+出力先に `日野町データポータル_手元版/` と `日野町議会_会議録検索/` ができます。前に作ったものがあるときは `--replace` を付けると消して作り直します。作った日は既定で今日で、`--date 2026-11-11` で指定できます。
+
+3. 終わりに渡す前の検査（DESIGN.md 11.5）の結果が出ます。終了コードは、すべて通れば 0、問題があれば 1、作れなかったとき（版が手元に無いなど）は 2、実ブラウザの検査をしなかったとき（`--no-browser` か Playwright が無い）は 3 です。作った一式の検査だけをやり直すときは `--check-only` を付けます。
+
+```sh
+PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.mjs \
+  python3 ~/GitHub/hino-portal/tools/bundle.py --out ~/temoto --check-only
+```
+
+版を上げるときは、`bundle.lock.json` の各リポジトリの `commit` を直す PR を出します。手元の取り出しにその版が無いときは、道具が止まって取ってくるコマンドを出します。
+
+道具の試験：
+
+```sh
+python3 -m unittest discover -s tools -p 'test_*.py'
+```
+
 ## ライセンス
 
 コードは MIT License です（[LICENSE](LICENSE)）。
