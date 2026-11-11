@@ -37,33 +37,54 @@ SNS で共有したときに出る画像は `og.png`（1200×630）です。編�
 
 ## 手元版の作り方
 
-インターネットにつながらない環境で使う一式（手元版。決まりは DESIGN.md 11章）は、`tools/bundle.py` で作ります。各リポジトリの公開しているページを、`bundle.lock.json` に書いた版で束ね、リンクを一式の中への相対のリンクに書き換え、各ページの上に手元版の帯を入れます。各リポジトリのファイルは変えません。
+インターネットにつながらない環境で使う一式（手元版。決まりは DESIGN.md 11章）は、`tools/bundle.py` で作ります。各リポジトリの公開しているページを、`bundle.lock.json` に書いた版で束ね、リンクを一式の中への相対のリンクに書き換え、各ページの上に手元版の帯を入れます。あわせて、計画の原典、町の資料、会議録の PDF、議会だより、議員の写真のうち手元にあるものを一式に写し、その URL へのリンクを手元のファイルに向けます。各リポジトリのファイルは変えません。
 
-要るもの：Python 3（標準ライブラリだけ）、git、Node.js（会議録 横断検索を作るのと、実ブラウザでの検査に使う）、Playwright（置き方は `shared/README.md`）。
+要るもの：Python 3（標準ライブラリだけ）、git、Node.js（会議録 横断検索を作るのと、会議録の PDF を取るのと、実ブラウザでの検査に使う）、Playwright（置き方は `shared/README.md`）。
 
-1. 各リポジトリを同じフォルダに取り出す（既定は hino-portal の親のフォルダ。ほかの場所なら `--src` で指定する）。
+1. 各リポジトリを同じフォルダに取り出す（既定は hino-portal の親のフォルダ。ほかの場所なら `--src` で指定する）。すでにあるものは取り出し直さない。
 
 ```sh
-cd ~/GitHub
-for r in shiga-hino-plans hino-plan-dashboard hino-zaisei hino-shisan hino-population hino-dashboard choisoko-hino-dashboard council-dashboard hino-shiryo hino-council-search; do
-  git clone --depth 1 https://github.com/kken78/$r
+cd /home/kken78/GitHub
+for r in shiga-hino-plans hino-plan-dashboard hino-zaisei hino-shisan hino-population hino-dashboard choisoko-hino-dashboard council-dashboard hino-shiryo hino-council-search hino-town-docs; do
+  [ -d $r ] || git clone --depth 1 https://github.com/kken78/$r
 done
 ```
 
-2. 束ねる。出力先はリポジトリの外にする。原典の PDF を入れる処理はまだ無いので、`--allow-missing` を付ける。
+2. 原典をそろえる。道具は次の場所から読みます。
+
+| 原典 | 読み込み元（既定） | 置き方 | 一覧 | 指定 |
+|---|---|---|---|---|
+| 計画の原典 | `/home/kken78/GitHub/shiga-hino-plans/sources_raw/` | `<id>/<file>` | `data/sources_index.tsv`（lock の版）の file のある行 | `--plans-raw` |
+| 町の資料 | `/home/kken78/GitHub/hino-town-docs/sources_raw/` | `<id>.<拡張子>` | `data/sources.tsv`（取り出しのいまの版）の format が pdf・xlsx の行 | `--docs-raw` |
+| 会議録 | `/home/kken78/GitHub/hino-council-search/議事録本体/` | `<会議ID>_<ファイル名>` | `public/data/meetings.json`・`toc.json`（lock の版） | `--council-pdf` |
+| 議会だより・議員の写真 | `/home/kken78/GitHub/temoto-town-files/` | `議会だより/<ファイル名>`・`写真/<ファイル名>` | council-dashboard の `data/issue-*.json`・`config.json`（lock の版） | `--town-files` |
+
+計画の原典と町の資料は、各リポジトリで取り込んだときに `sources_raw/` に置いたものを使います（shiga-hino-plans の CLAUDE.md、hino-town-docs の DOCS_SCHEMA.md §6）。会議録の PDF は、hino-council-search の README のとおりに取ります。
 
 ```sh
-PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.mjs \
-  python3 ~/GitHub/hino-portal/tools/bundle.py --out ~/temoto --allow-missing
+cd /home/kken78/GitHub/hino-council-search && node scripts/fetch-pdfs.mjs
 ```
 
-出力先に `日野町データポータル_手元版/` と `日野町議会_会議録検索/` ができます。前に作ったものがあるときは `--replace` を付けると消して作り直します。作った日は既定で今日で、`--date 2026-11-11` で指定できます。
+議会だよりと議員の写真は、次の 3 で `--fetch` を付けると、置き場所に無いものを道具が町のホームページから取ります（1秒に1件。取ったものは置き場所に残り、次からは取り直しません）。
 
-3. 終わりに渡す前の検査（DESIGN.md 11.5）の結果が出ます。終了コードは、すべて通れば 0、問題があれば 1、作れなかったとき（版が手元に無いなど）は 2、実ブラウザの検査をしなかったとき（`--no-browser` か Playwright が無い）は 3 です。作った一式の検査だけをやり直すときは `--check-only` を付けます。いまは原典の PDF と、議会だより・一般質問（council-dashboard）の議員の写真を一式に入れる処理がまだ無いので、「議員別」のタブが町のホームページの写真を読む通信が外への通信として数えられ、検査は終了コード 1 で止まります。
+3. 束ねる。出力先と置き場所はリポジトリの外にする。
 
 ```sh
-PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.mjs \
-  python3 ~/GitHub/hino-portal/tools/bundle.py --out ~/temoto --check-only
+PLAYWRIGHT_MODULE=/home/kken78/GitHub/hino-portal-work/tools/node_modules/playwright/index.mjs \
+  python3 /home/kken78/GitHub/hino-portal/tools/bundle.py --out /home/kken78/temoto --fetch
+```
+
+出力先に `日野町データポータル_手元版/` と `日野町議会_会議録検索/` ができます。原典は `日野町データポータル_手元版/原典/`（`計画/<id>/<file>`、`資料/<分類>/<id>.<拡張子>`、`議会だより/`）、議員の写真は `council-dashboard/写真/`、会議録の PDF は `日野町議会_会議録検索/議事録本体/` に入ります。町の資料の一覧は `資料の一覧.csv` です。前に作ったものがあるときは `--replace` を付けると消して作り直します。作った日は既定で今日で、`--date 2026-11-11` で指定できます。
+
+- 手元に無い原典・会議録・議会だより・写真があると、種類ごとの件数と例を出して止まります。無いものを飛ばして作るときは `--allow-missing` を付けます。飛ばしたものへのリンクは町のホームページの URL のままで、「はじめにお読みください.txt」に入れた件数と入れていない件数が出ます。
+- 計画の原典と町の資料は、写すときに sha256 を一覧と比べます。合わないものがあると、一覧を出して止まります。合わないものを入れずに続けるときは `--on-mismatch skip` を付けます。
+- 原典の大きさは、一覧の bytes の合計で、計画の原典 764,442,301 バイト、町の資料 2,136,467,869 バイトです（会議録、議会だより、写真の大きさは一覧に無い）。
+
+4. 終わりに渡す前の検査（DESIGN.md 11.5）の結果が出ます。終了コードは、すべて通れば 0、問題があれば 1、作れなかったとき（版が手元に無い、原典が手元に無いなど）は 2、実ブラウザの検査をしなかったとき（`--no-browser` か Playwright が無い）は 3 です。議員の写真を入れずに作ったときは、「議員別」のタブが町のホームページの写真を読む通信が外への通信として数えられ、終了コード 1 になります。作った一式の検査だけをやり直すときは `--check-only` を付けます。
+
+```sh
+PLAYWRIGHT_MODULE=/home/kken78/GitHub/hino-portal-work/tools/node_modules/playwright/index.mjs \
+  python3 /home/kken78/GitHub/hino-portal/tools/bundle.py --out /home/kken78/temoto --check-only
 ```
 
 版を上げるときは、`bundle.lock.json` の各リポジトリの `commit` を直す PR を出します。手元の取り出しにその版が無いときは、道具が止まって取ってくるコマンドを出します。
@@ -71,7 +92,7 @@ PLAYWRIGHT_MODULE=~/GitHub/hino-portal-work/tools/node_modules/playwright/index.
 道具の試験：
 
 ```sh
-python3 -m unittest discover -s tools -p 'test_*.py'
+cd /home/kken78/GitHub/hino-portal && python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
 ## ライセンス

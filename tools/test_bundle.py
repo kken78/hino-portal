@@ -2,11 +2,16 @@
 
   python3 -m unittest discover -s tools -p 'test_*.py'
 """
+import argparse
+import contextlib
+import datetime
+import hashlib
 import io
 import os
 import sys
 import tempfile
 import unittest
+import urllib.error
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -237,6 +242,329 @@ class LockTest(unittest.TestCase):
                 bundle.load_lock(f.name)
         finally:
             os.unlink(f.name)
+
+
+TOWN = "https://www.town.shiga-hino.lg.jp/cmsfiles/contents/"
+PDF = b"%PDF-1.4\n%%EOF\n"
+
+
+def write(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(data)
+
+
+class LocalRewriteTest(unittest.TestCase):
+    """一式に入れたファイルの URL の書き換え（11.4）"""
+    A = TOWN + "0000005/5559/R3.9hoseiyosann(tuika)nogaiyou.pdf"
+    B = TOWN + "0000001/1791/01.pdf"
+    FMAP = {A: f"{P}/原典/資料/yosan/yosan-r3-hosei-09-tsuika.pdf", B: f"{P}/原典/計画/sogo6/honpen-01.pdf"}
+
+    def rw(self, text, base, **kw):
+        return bundle.rewrite_local_files(text, base, self.FMAP, **kw)
+
+    def test_html_and_page_kept(self):
+        self.assertEqual(self.rw(f'<a href="{self.B}#page=3">p</a>', f"{P}/shiga-hino-plans/plans"),
+                         '<a href="../../原典/計画/sogo6/honpen-01.pdf#page=3">p</a>')
+
+    def test_js_data_and_parentheses(self):
+        self.assertEqual(self.rw('{"u":"%s","f":"pdf"}' % self.A, f"{P}/hino-shiryo"),
+                         '{"u":"../原典/資料/yosan/yosan-r3-hosei-09-tsuika.pdf","f":"pdf"}')
+        self.assertEqual(self.rw(f"u='{self.A}'+'#page='+n", f"{P}/hino-zaisei"),
+                         "u='../原典/資料/yosan/yosan-r3-hosei-09-tsuika.pdf'+'#page='+n")
+
+    def test_from_council_folder(self):
+        self.assertEqual(self.rw(f'"{self.B}"', C), f'"../{P}/原典/計画/sogo6/honpen-01.pdf"')
+
+    def test_exact_match_only(self):
+        for s in (self.B + "x", self.B + "/", self.B + "?a=1", self.B.replace("https:", "http:"),
+                  self.B[:-4] + "2.pdf", TOWN + "0000001/1791/1.pdf", TOWN + "0000001/1791/001.pdf",
+                  self.A.replace("(tuika)", ""),
+                  "https://web.archive.org/web/20250416000000id_/" + self.B,
+                  "https://example.org/?u=" + self.B):
+            self.assertEqual(self.rw(f'"{s}"', P), f'"{s}"', s)
+
+    def test_trailing_punctuation(self):
+        self.assertEqual(self.rw(f"（{self.B}）。", P), "（原典/計画/sogo6/honpen-01.pdf）。")
+        self.assertEqual(self.rw(f"見る：{self.B}.", P), "見る：原典/計画/sogo6/honpen-01.pdf.")
+
+    def test_known_but_not_bundled_stays(self):
+        online, log = [], []
+        other = TOWN + "0000008/8534/R8jigyou.pdf"
+        out = self.rw(f'<a href="{other}">a</a><a href="{self.B}">b</a>', P,
+                      known={other, self.B}, online=online, log=log)
+        self.assertIn(f'href="{other}"', out)
+        self.assertEqual(online, [other])
+        self.assertEqual(log, [(self.B, self.FMAP[self.B])])
+
+    def test_meta_protected(self):
+        src = f'<meta property="og:image" content="{self.B}"><a href="{self.B}">a</a>'
+        out = self.rw(src, P, protect_html=True)
+        self.assertIn(f'content="{self.B}"', out)
+        self.assertIn('<a href="原典/計画/sogo6/honpen-01.pdf">', out)
+
+    def test_href_path_escapes(self):
+        self.assertEqual(bundle.href_path("原典/a b/%x#y.pdf"), "原典/a%20b/%25x%23y.pdf")
+
+
+class GentenItemsTest(unittest.TestCase):
+    def test_plan_and_doc_paths(self):
+        plans = [{"id": "sogo6", "file": "honpen-01.pdf", "url": "u1", "sha256": "AB"},
+                 {"id": "kanbatsu", "file": "", "url": "", "sha256": ""}]
+        it = bundle.plan_items(plans, "/raw")
+        self.assertEqual(len(it), 1)
+        self.assertEqual(it[0]["dest"], f"{P}/原典/計画/sogo6/honpen-01.pdf")
+        self.assertEqual(it[0]["srcs"], [os.path.join("/raw", "sogo6", "honpen-01.pdf")])
+        self.assertEqual(it[0]["sha256"], "ab")
+        docs = [{"id": "yosan-r8-gaiyou", "category": "yosan", "url": TOWN + "a/b.PDF", "format": "pdf", "sha256": "x"},
+                {"id": "zaisei-r6-shiryo", "category": "zaisei", "url": TOWN + "a/b.xlsx", "format": "xlsx", "sha256": "y"},
+                {"id": "kaiken-20260225-page", "category": "kaiken", "url": "https://h/1.html", "format": "html",
+                 "sha256": "z"}]
+        it = bundle.doc_items(docs, "/d")
+        self.assertEqual([x["dest"] for x in it], [f"{P}/原典/資料/yosan/yosan-r8-gaiyou.pdf",
+                                                   f"{P}/原典/資料/zaisei/zaisei-r6-shiryo.xlsx"])
+        self.assertEqual(it[0]["srcs"], [os.path.join("/d", "yosan-r8-gaiyou.pdf")])
+
+    def test_unsafe_names(self):
+        with self.assertRaises(bundle.BundleError):
+            bundle.plan_items([{"id": "a", "file": "../x.pdf", "url": "u", "sha256": ""}], "/r")
+        with self.assertRaises(bundle.BundleError):
+            bundle.doc_items([{"id": "a/b", "category": "c", "url": "u.pdf", "format": "pdf", "sha256": ""}], "/r")
+
+    def test_council_and_town_items(self):
+        meta = {"meetings": [{"id": "0000001", "pdfs": [{"url": TOWN + "1/4nitime.pdf"}]}], "toc": []}
+        it = bundle.council_items(meta, C, "/c")
+        self.assertEqual(it[0]["dest"], f"{C}/議事録本体/0000001_4nitime.pdf")
+        self.assertEqual(it[0]["srcs"], [os.path.join("/c", "0000001_4nitime.pdf")])
+        t = bundle.town_file_items([TOWN + "7081/hino36web.pdf"], [TOWN + "7949/1_nisikido.JPG", ""],
+                                   f"{P}/council-dashboard", "/t")
+        self.assertEqual([x["dest"] for x in t], [f"{P}/原典/議会だより/hino36web.pdf",
+                                                  f"{P}/council-dashboard/写真/1_nisikido.JPG"])
+        self.assertEqual(t[1]["srcs"], [os.path.join("/t", "写真", "1_nisikido.JPG")])
+
+    def test_duplicate_dest(self):
+        with self.assertRaises(bundle.BundleError):
+            bundle.check_items([{"dest": "a", "url": "1"}, {"dest": "a", "url": "2"}])
+
+    def test_archive_alias(self):
+        arc = "https://web.archive.org/web/20250416122618id_/" + TOWN + "0000008/8225/keikaku.pdf"
+        rows = [{"id": "jigyo-a", "category": "jigyo", "url": TOWN + "0000008/8225/keikaku.pdf", "format": "pdf",
+                 "sha256": "", "archive_url": arc}]
+        it = bundle.doc_items(rows, "/d")
+        fmap = bundle.file_map([dict(it[0], src="x")])
+        self.assertEqual(fmap[arc], f"{P}/原典/資料/jigyo/jigyo-a.pdf")
+        out = bundle.rewrite_local_files(f'"{arc}" "{arc.replace("id_/", "/")}"', f"{P}/hino-shiryo", fmap)
+        self.assertEqual(out, f'"../原典/資料/jigyo/jigyo-a.pdf" "{arc.replace("id_/", "/")}"')
+
+    def test_file_map_priority(self):
+        present = [{"kind": "doc", "url": "u", "dest": "d"}, {"kind": "plan", "url": "u", "dest": "p1"},
+                   {"kind": "plan", "url": "u", "dest": "p2"}, {"kind": "council", "url": "c", "dest": "k"}]
+        self.assertEqual(bundle.file_map(present), {"u": "p1", "c": "k"})
+
+    def test_read_ledger(self):
+        rows = bundle.read_ledger('id\turl\nA\t"x"\n', ("id", "url"), "t")
+        self.assertEqual(rows, [{"id": "A", "url": '"x"'}])
+        with self.assertRaises(bundle.BundleError):
+            bundle.read_ledger("id\n", ("id", "url"), "t")
+
+
+class ResolveTest(unittest.TestCase):
+    def test_present_missing_mismatch(self):
+        with tempfile.TemporaryDirectory() as d:
+            ok, bad, jpg, notjpg = (os.path.join(d, n) for n in ("ok.pdf", "bad.pdf", "a.JPG", "b.JPG"))
+            write(ok, PDF)
+            write(bad, PDF + b"x")
+            write(jpg, b"\xff\xd8\xff\xe0rest")
+            write(notjpg, b"<html>not found</html>")
+            sha = hashlib.sha256(PDF).hexdigest()
+            items = [{"kind": "plan", "url": "1", "srcs": [ok], "sha256": sha, "dest": "a", "label": "1"},
+                     {"kind": "plan", "url": "2", "srcs": [bad], "sha256": sha, "dest": "b", "label": "2"},
+                     {"kind": "doc", "url": "3", "srcs": [os.path.join(d, "no.pdf"), ok], "sha256": sha,
+                      "dest": "c", "label": "3"},
+                     {"kind": "doc", "url": "4", "srcs": [os.path.join(d, "no.pdf")], "sha256": sha, "dest": "d",
+                      "label": "4"},
+                     {"kind": "photo", "url": "5", "srcs": [jpg], "sha256": "", "dest": "e", "label": "5"},
+                     {"kind": "photo", "url": "6", "srcs": [notjpg], "sha256": "", "dest": "f", "label": "6"}]
+            present, missing, mismatch = bundle.resolve_items(items)
+            self.assertEqual([x["url"] for x in present], ["1", "3", "5"])
+            self.assertEqual(present[1]["src"], ok)
+            self.assertEqual([x["url"] for x in missing], ["4"])
+            self.assertEqual([x[0]["url"] for x in mismatch], ["2", "6"])
+            self.assertIn("sha256", mismatch[0][1])
+            counts = bundle.summary_counts(items, present)
+            self.assertEqual(counts["plan"], (2, 1))
+            self.assertEqual(counts["council"], (0, 0))
+            self.assertEqual(bundle.bundled_state(counts)["議員の写真"], "some")
+
+
+class FetchTest(unittest.TestCase):
+    def items(self, d, names):
+        return [{"kind": "bulletin", "url": TOWN + n, "srcs": [os.path.join(d, "議会だより", n)], "label": n}
+                for n in names]
+
+    def test_skip_existing_wait_and_404(self):
+        with tempfile.TemporaryDirectory() as d:
+            its = self.items(d, ["a.pdf", "b.pdf", "c.pdf", "d.pdf"])
+            write(its[0]["srcs"][0], PDF)
+            calls, sleeps = [], []
+
+            def opener(url):
+                calls.append(url)
+                if url.endswith("b.pdf"):
+                    raise urllib.error.HTTPError(url, 404, "nf", {}, None)
+                if url.endswith("c.pdf"):
+                    return b"<html>error</html>"
+                return PDF
+            got, failed, rest = bundle.fetch_town_files(its, opener=opener, sleep=sleeps.append, log=lambda *a: None)
+            self.assertEqual(calls, [TOWN + "b.pdf", TOWN + "c.pdf", TOWN + "d.pdf"])  # a は取り直さない
+            self.assertEqual(sleeps, [1.0, 1.0])  # 2件目から、1秒ずつ空ける
+            self.assertEqual([x["label"] for x in got], ["d.pdf"])
+            self.assertEqual([(x["label"], why) for x, why in failed][0], ("b.pdf", "HTTP 404"))
+            self.assertIn("形ではありません", failed[1][1])
+            self.assertEqual(rest, [])
+            self.assertFalse(os.path.exists(its[2]["srcs"][0]))
+            with open(its[3]["srcs"][0], "rb") as f:
+                self.assertEqual(f.read(), PDF)
+
+    def test_stop_on_refusal(self):
+        with tempfile.TemporaryDirectory() as d:
+            its = self.items(d, ["a.pdf", "b.pdf", "c.pdf"])
+            calls = []
+
+            def opener(url):
+                calls.append(url)
+                raise urllib.error.HTTPError(url, 403, "forbidden", {}, None)
+            got, failed, rest = bundle.fetch_town_files(its, opener=opener, sleep=lambda s: None, log=lambda *a: None)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(failed[0][1], "HTTP 403")
+            self.assertEqual([x["label"] for x in rest], ["b.pdf", "c.pdf"])
+
+    def test_user_agent(self):
+        seen = {}
+
+        class Res(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_urlopen(req, timeout=None):
+            seen["ua"] = req.get_header("User-agent")
+            return Res(PDF)
+        orig = bundle.urllib.request.urlopen
+        bundle.urllib.request.urlopen = fake_urlopen
+        try:
+            self.assertEqual(bundle.http_get("https://example.org/a.pdf"), PDF)
+        finally:
+            bundle.urllib.request.urlopen = orig
+        self.assertEqual(seen["ua"], bundle.USER_AGENT)
+        self.assertIn("hino-portal", seen["ua"])
+
+
+class NoMarkBundledTest(unittest.TestCase):
+    RULE = {"selector": ".tlcap", "note_before": "#sessionTL", "note": "全部", "note_partial": "一部",
+            "unless_bundled": "議会だより"}
+
+    def test_states(self):
+        self.assertEqual(bundle.no_mark_css([self.RULE], {"議会だより": "all"}), "")
+        self.assertIn('content:"一部"', bundle.no_mark_css([self.RULE], {"議会だより": "some"}))
+        self.assertIn('content:"全部"', bundle.no_mark_css([self.RULE], {"議会だより": "none"}))
+        self.assertIn('content:"全部"', bundle.no_mark_css([self.RULE]))
+
+    def test_lock_rules_have_partial_note(self):
+        lock = bundle.load_lock(os.path.join(bundle.REPO_ROOT, "bundle.lock.json"))
+        gikai = [r for r in lock["repos"] if r["name"] == "council-dashboard"][0]
+        for r in gikai["no_mark"]:
+            self.assertEqual(r["unless_bundled"], "議会だより")
+            self.assertIn("手元に無い号", r["note_partial"])
+            self.assertEqual(bundle.no_mark_css([r], {"議会だより": "all"}), "")
+
+
+class ListAndReadmeTest(unittest.TestCase):
+    ROWS = [{"id": "yosan-r8-gaiyou", "category": "yosan", "title": "令和8年度当初予算の概要", "fiscal_year": "2026",
+             "date": "", "url": "u1", "format": "pdf"},
+            {"id": "kaiken-20260225-page", "category": "kaiken", "title": "記者会見, 2月", "fiscal_year": "2025",
+             "date": "2026-02-25", "url": "u2", "format": "html"},
+            {"id": "koho-no790", "category": "koho", "title": "広報ひの", "fiscal_year": "2026", "date": "2026-05",
+             "url": "u3", "format": "pdf"}]
+
+    def test_shiryo_list(self):
+        present = [{"kind": "doc", "url": "u1", "dest": f"{P}/原典/資料/yosan/yosan-r8-gaiyou.pdf"}]
+        text = bundle.shiryo_list_csv(self.ROWS, present)
+        lines = text.split("\r\n")
+        self.assertEqual(lines[0], "番号,分類,タイトル,年度（西暦）,日付,一式の中のファイル,町のホームページの URL")
+        self.assertEqual(lines[1], "yosan-r8-gaiyou,yosan,令和8年度当初予算の概要,2026,,原典/資料/yosan/yosan-r8-gaiyou.pdf,u1")
+        self.assertEqual(lines[2], 'kaiken-20260225-page,kaiken,"記者会見, 2月",2025,2026-02-25,,u2')
+        self.assertEqual(lines[3], "koho-no790,koho,広報ひの,2026,2026-05,,u3")
+
+    ITEMS = [{"name": "hino-portal", "title": "ポータル", "commit": "0" * 40, "date": datetime.date(2026, 11, 10),
+              "dest": P},
+             {"name": "council-dashboard", "title": "議会だより・一般質問", "commit": "1" * 40,
+              "date": datetime.date(2026, 11, 10), "dest": f"{P}/council-dashboard"},
+             {"name": "hino-council-search", "title": "会議録 横断検索", "commit": "2" * 40,
+              "date": datetime.date(2026, 11, 10), "dest": C}]
+
+    def readme(self, counts):
+        return bundle.readme_text(datetime.date(2026, 11, 11), self.ITEMS, counts, ("3" * 40, datetime.date(2026, 11, 9)))
+
+    def test_all(self):
+        t = self.readme({"plan": (146, 146), "doc": (1111, 1111), "bulletin": (13, 13), "photo": (14, 14),
+                         "council": (269, 269)})
+        self.assertIn("計画の原典：146 件のうち、入れたもの 146 件、入れていないもの 0 件", t)
+        self.assertIn("会議録：269 件のうち、入れたもの 269 件、入れていないもの 0 件", t)
+        self.assertNotIn("原典の PDF を入れていません", t)
+        self.assertNotIn("入れていない資料へのリンク", t)
+        self.assertIn("council-dashboard/写真/：議員の写真", t)
+        self.assertIn("原典/議会だより/：議会だより", t)
+        self.assertIn("議事録本体/：会議録の PDF", t)
+        self.assertIn("資料の一覧.csv", t)
+        self.assertIn("3" * 40, t)
+        self.assertNotRegex(t, "[—―]|台帳")
+
+    def test_partial(self):
+        t = self.readme({"plan": (146, 100), "doc": (1111, 0), "bulletin": (13, 13), "photo": (14, 0),
+                         "council": (269, 0)})
+        self.assertIn("入れていない資料へのリンクは、町のホームページの URL のままで", t)
+        self.assertIn("町の資料：1111 件のうち、入れたもの 0 件、入れていないもの 1111 件", t)
+        self.assertNotIn("写真/：議員の写真", t)
+        self.assertNotIn("議事録本体/", t)
+
+    def test_none(self):
+        t = self.readme({"plan": (146, 0), "doc": (1111, 0), "bulletin": (13, 0), "photo": (14, 0), "council": (269, 0)})
+        self.assertIn("原典の PDF を入れていません", t)
+        self.assertNotIn("のうち、入れたもの", t)
+
+
+class LocalRefCheckTest(unittest.TestCase):
+    def test_refs(self):
+        t = ('<a href="../../原典/計画/a/b.pdf#page=3">x</a>{"t":"a b","u":"../原典/資料/yosan/x.pdf"}'
+             '"pdf":"議事録本体/1_a.pdf",\'写真/1.JPG\',"https://x/原典/a.pdf","x原典/a.pdf",'
+             '"../../日野町議会_会議録検索/議事録本体/2.pdf"')
+        self.assertEqual(bundle.local_file_refs(t), ["../../原典/計画/a/b.pdf#page=3", "../原典/資料/yosan/x.pdf",
+                                                     "議事録本体/1_a.pdf", "写真/1.JPG",
+                                                     "../../日野町議会_会議録検索/議事録本体/2.pdf"])
+
+    def test_check_finds_missing_pdf_in_data(self):
+        with tempfile.TemporaryDirectory() as out:
+            write(os.path.join(out, P, "index.html"), b"<html><body>p</body></html>")
+            write(os.path.join(out, P, "hino-shiryo", "index.html"),
+                  b'<html><body><script src="data/index.js"></script></body></html>')
+            write(os.path.join(out, P, "hino-shiryo", "data", "index.js"),
+                  'D={"u":"../原典/資料/yosan/a.pdf"},{"u":"../原典/資料/yosan/b.pdf"}'.encode())
+            write(os.path.join(out, P, "原典", "資料", "yosan", "a.pdf"), PDF)
+            write(os.path.join(out, C, "index.html"), '<a href="議事録本体/1_a.pdf">a</a>'.encode())
+            args = argparse.Namespace(lock=os.path.join(bundle.REPO_ROOT, "bundle.lock.json"), no_browser=True,
+                                      timeout=1)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                problems, browsed = bundle.check(out, args)
+            log = buf.getvalue()
+            self.assertFalse(browsed)
+            # b.pdf（データの中）と 議事録本体/1_a.pdf（HTML のリンクの検査とこの検査の両方）
+            self.assertEqual(problems, 3, log)
+            self.assertIn("3 か所を確かめ、開けないもの 2 件", log)
+            self.assertIn("../原典/資料/yosan/b.pdf：ファイルが無い", log)
 
 
 if __name__ == "__main__":
