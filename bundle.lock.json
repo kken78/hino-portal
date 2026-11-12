@@ -1,5 +1,13 @@
 {
-  "note": "手元版（DESIGN.md 11章）に束ねる版。版を上げるときは commit を直す PR を出す。source は公開しているフォルダ（リポジトリの中のパス）、dest は束ね先（出力先の中のパス）、exclude は束ねないファイル（source からのパスの glob。tools/bundle.py の既定の除外に足す）。make は、公開しているフォルダをそのまま写さずに道具で作るもの。no_mark は、幅の決まった部品の中にあって「（インターネット）」の印を付けると字が切れるリンク（selector）と、その代わりに1回だけ書く文（note を note_before の要素の前に置く。note_style で色などをまわりの説明の文に合わせる）。",
+  "note": "手元版（DESIGN.md 11章）に束ねる版。版を上げるときは commit を直す PR を出す。source は公開しているフォルダ（リポジトリの中のパス）、dest は束ね先（出力先の中のパス）、exclude は束ねないファイル（source からのパスの glob。tools/bundle.py の既定の除外に足す）。make は、公開しているフォルダをそのまま写さずに道具で作るもの。no_mark は、幅の決まった部品の中にあって「（インターネット）」の印を付けると字が切れるリンク（selector）と、その代わりに1回だけ書く文（note を note_before の要素の前に置く。note_style で色などをまわりの説明の文に合わせる）。unless_bundled は原典の種類の名前で、その種類をすべて一式に入れたときはその no_mark を使わず（リンクが手元を指すため）、一部だけ入れたときは note の代わりに note_partial を使う。ledgers は、画面を束ねず、原典の一覧（台帳）だけを読むリポジトリの版（use に読むファイル）。",
+  "ledgers": [
+    {
+      "name": "hino-town-docs",
+      "title": "町の資料の一覧と原典",
+      "commit": "49c2e4fb4e2dd3250f74035611177a0de15c4a01",
+      "use": "data/sources.tsv"
+    }
+  ],
   "repos": [
     {
       "name": "hino-portal",
@@ -82,7 +90,7 @@
     {
       "name": "council-dashboard",
       "title": "議会だより・一般質問",
-      "commit": "cea6a76f5539a3fb020d2d7ec233767ac4474032",
+      "commit": "81216f119160360ee284c6bfb814c0ec7e697992",
       "published": "GitHub Actions（.github/workflows/build.yml が build.py で docs/ を作り直して公開する。リポジトリの docs/ と作り直したものの違いは、作った日の2か所だけ）",
       "source": "docs",
       "dest": "日野町データポータル_手元版/council-dashboard",
@@ -96,13 +104,17 @@
           "selector": ".tlcap",
           "note_before": "#sessionTL",
           "note": "号の名前は、議会だよりの PDF へのリンクです。PDF は、インターネットにつながるときだけ開けます。",
-          "note_style": "color:var(--ink-2)"
+          "note_style": "color:var(--ink-2)",
+          "unless_bundled": "議会だより",
+          "note_partial": "号の名前は、議会だよりの PDF へのリンクです。手元に無い号の PDF は、インターネットにつながるときだけ開けます。"
         },
         {
           "selector": ".bchip",
           "note_before": "#bulletinList",
           "note": "PDF は、インターネットにつながるときだけ開けます。",
-          "note_style": "color:var(--ink-2);margin:-12px 0 4px"
+          "note_style": "color:var(--ink-2);margin:-12px 0 4px",
+          "unless_bundled": "議会だより",
+          "note_partial": "手元に無い号の PDF は、インターネットにつながるときだけ開けます。"
         }
       ]
     },
