@@ -458,7 +458,7 @@ class FetchTest(unittest.TestCase):
                 if url.endswith("c.pdf"):
                     return b"<html>error</html>"
                 return PDF
-            got, failed, rest = bundle.fetch_town_files(its, opener=opener, sleep=sleeps.append, log=lambda *a: None)
+            got, failed, rest = bundle.fetch_files(its, opener=opener, sleep=sleeps.append, log=lambda *a: None)
             self.assertEqual(calls, [TOWN + "b.pdf", TOWN + "c.pdf", TOWN + "d.pdf"])  # a は取り直さない
             self.assertEqual(sleeps, [1.0, 1.0])  # 2件目から、1秒ずつ空ける
             self.assertEqual([x["label"] for x in got], ["d.pdf"])
@@ -477,10 +477,80 @@ class FetchTest(unittest.TestCase):
             def opener(url):
                 calls.append(url)
                 raise urllib.error.HTTPError(url, 403, "forbidden", {}, None)
-            got, failed, rest = bundle.fetch_town_files(its, opener=opener, sleep=lambda s: None, log=lambda *a: None)
+            got, failed, rest = bundle.fetch_files(its, opener=opener, sleep=lambda s: None, log=lambda *a: None)
             self.assertEqual(len(calls), 1)
             self.assertEqual(failed[0][1], "HTTP 403")
             self.assertEqual([x["label"] for x in rest], ["b.pdf", "c.pdf"])
+
+    def test_council_pdf_named_like_fetch_pdfs(self):
+        # 会議録の PDF：読み込み元に <会議ID>_<ファイル名> で置く（scripts/fetch-pdfs.mjs と同じ）。進み具合を出す
+        meta = {"meetings": [{"id": "0000001", "pdfs": [{"url": TOWN + "1/4nitime.pdf"}]},
+                             {"id": "0000002", "pdfs": [{"url": TOWN + "2/4nitime.pdf"}]}], "toc": []}
+        with tempfile.TemporaryDirectory() as d:
+            pdf_dir = os.path.join(d, "議事録本体")
+            its = bundle.council_items(meta, bundle.COUNCIL_DIR, pdf_dir)
+            logs = []
+            got, failed, rest = bundle.fetch_files(its, opener=lambda u: PDF, sleep=lambda s: None, log=logs.append)
+            self.assertEqual(len(got), 2)
+            self.assertEqual(sorted(os.listdir(pdf_dir)), ["0000001_4nitime.pdf", "0000002_4nitime.pdf"])
+            self.assertTrue(logs[0].startswith("  [1/2] 取った："))
+            self.assertTrue(logs[1].startswith("  [2/2] 取った："))
+            present, missing, mismatch = bundle.resolve_items(its)
+            self.assertEqual((len(present), missing, mismatch), (2, [], []))
+
+    def test_html_error_page_not_placed(self):
+        with tempfile.TemporaryDirectory() as d:
+            its = self.items(d, ["a.pdf"])
+            got, failed, rest = bundle.fetch_files(its, opener=lambda u: b"<!DOCTYPE html><title>error</title>",
+                                                   sleep=lambda s: None, log=lambda *a: None)
+            self.assertEqual(got, [])
+            self.assertIn("形ではありません", failed[0][1])
+            self.assertEqual(os.listdir(d), [])  # フォルダも一時のファイルも作らない
+
+    def test_stop_after_consecutive_failures(self):
+        with tempfile.TemporaryDirectory() as d:
+            its = self.items(d, [f"{c}.pdf" for c in "abcdefgh"])
+            calls = []
+
+            def opener(url):
+                calls.append(url)
+                if url.endswith("a.pdf"):
+                    return PDF
+                raise urllib.error.HTTPError(url, 404, "nf", {}, None)
+            logs = []
+            got, failed, rest = bundle.fetch_files(its, opener=opener, sleep=lambda s: None, log=logs.append)
+            self.assertEqual(len(calls), 1 + bundle.FETCH_FAIL_LIMIT)  # a と、続けて失敗した5件
+            self.assertEqual(len(failed), 5)
+            self.assertEqual([x["label"] for x in rest], ["g.pdf", "h.pdf"])
+            self.assertIn("続いたので止めます", logs[-1])
+
+    def test_success_resets_streak(self):
+        with tempfile.TemporaryDirectory() as d:
+            names = [f"{i:02d}.pdf" for i in range(10)]
+            its = self.items(d, names)
+            ok = {"04.pdf", "09.pdf"}  # 失敗4件のあと成功、を繰り返す
+
+            def opener(url):
+                if url.rsplit("/", 1)[-1] in ok:
+                    return PDF
+                return b"<html></html>"
+            got, failed, rest = bundle.fetch_files(its, opener=opener, sleep=lambda s: None, log=lambda *a: None)
+            self.assertEqual((len(got), len(failed), rest), (2, 8, []))
+
+    def test_no_partial_file_when_write_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            dst = os.path.join(d, "x", "a.pdf")
+            orig = bundle.os.replace
+
+            def bad_replace(a, b):
+                raise OSError("disk")
+            bundle.os.replace = bad_replace
+            try:
+                with self.assertRaises(OSError):
+                    bundle.write_atomic(dst, PDF)
+            finally:
+                bundle.os.replace = orig
+            self.assertEqual(os.listdir(os.path.join(d, "x")), [])
 
     def test_user_agent(self):
         seen = {}

@@ -39,7 +39,7 @@ SNS で共有したときに出る画像は `og.png`（1200×630）です。編�
 
 インターネットにつながらない環境で使う一式（手元版。決まりは DESIGN.md 11章）は、`tools/bundle.py` で作ります。各リポジトリの公開しているページを、`bundle.lock.json` に書いた版で束ね、リンクを一式の中への相対のリンクに書き換え、各ページの上に手元版の帯を入れます。あわせて、計画の原典、町の資料、会議録の PDF、議会だより、議員の写真のうち手元にあるものを一式に写し、その URL へのリンクを手元のファイルに向けます。各リポジトリのファイルは変えません。
 
-要るもの：Python 3（標準ライブラリだけ）、git、Node.js（会議録 横断検索を作るのと、会議録の PDF を取るのと、実ブラウザでの検査に使う）、Playwright（置き方は `shared/README.md`）。
+要るもの：Python 3（標準ライブラリだけ）、git、Node.js（会議録 横断検索を作るのと、実ブラウザでの検査に使う）、Playwright（置き方は `shared/README.md`）。
 
 1. 各リポジトリを同じフォルダに取り出す（既定は hino-portal の親のフォルダ。ほかの場所なら `--src` で指定する）。すでにあるものは取り出し直さない。
 
@@ -59,13 +59,9 @@ done
 | 会議録 | `~/GitHub/hino-council-search/議事録本体/` | `<会議ID>_<ファイル名>` | `public/data/meetings.json`・`toc.json`（lock の版） | `--council-pdf` |
 | 議会だより・議員の写真 | `~/GitHub/temoto-town-files/` | `議会だより/<ファイル名>`・`写真/<ファイル名>` | council-dashboard の `data/issue-*.json`・`config.json`（lock の版） | `--town-files` |
 
-計画の原典と町の資料は、各リポジトリの `sources_raw/` に、取り込んだときの原典がある前提です（置き方は shiga-hino-plans の CLAUDE.md、hino-town-docs の DOCS_SCHEMA.md §6）。道具は一覧にあるファイルだけを写し、`sources_raw/` にある一覧に無いファイルは写さずに件数だけを出します。会議録の PDF は、hino-council-search の README のとおりに取ります。
+計画の原典と町の資料は、各リポジトリの `sources_raw/` に、取り込んだときの原典がある前提です（置き方は shiga-hino-plans の CLAUDE.md、hino-town-docs の DOCS_SCHEMA.md §6）。道具は一覧にあるファイルだけを写し、`sources_raw/` にある一覧に無いファイルは写さずに件数だけを出します。
 
-```sh
-cd ~/GitHub/hino-council-search && node scripts/fetch-pdfs.mjs
-```
-
-議会だよりと議員の写真は、次の 3 で `--fetch` を付けると、置き場所に無いものを道具が町のホームページから取ります（1秒に1件。取ったものは置き場所に残り、次からは取り直しません）。
+会議録の PDF と、議会だより・議員の写真は、次の 3 で `--fetch` を付けると、読み込み元・置き場所に無いものを道具が町のホームページから取ります。1秒に1件ずつ取り、何件中の何件目かを表示します。会議録の PDF は今の一覧で 269 件あり、すべて取ると約5分かかります。取ったものは読み込み元・置き場所に残り、次からは取り直しません。PDF などの形でない応答（エラーのページなど）は置かずに、取れなかったものとして件数と例を出します。失敗が続けて5件あったときと、断られたときやつながらないときは、残りを取らずに止まります。時間をおいてもう一度動かすと、続きから取ります。
 
 3. 束ねる。出力先と置き場所はリポジトリの外にする。次の Playwright の場所は Mac の例で、Linux での場所は `shared/README.md` にあります。
 
