@@ -22,7 +22,8 @@
                     置き場所 <town-files>/議会だより/<ファイル名> → 原典/議会だより/<ファイル名>
        議員の写真   council-dashboard の config.json の members[].photo（lock の版）。
                     置き場所 <town-files>/写真/<ファイル名> → council-dashboard/写真/<ファイル名>
-     議会だよりと議員の写真は、--fetch を付けると、置き場所に無いものを町のホームページから取る（1秒に1件、User-Agent を名乗る）。
+     会議録の PDF と議会だより・議員の写真は、--fetch を付けると、読み込み元・置き場所に無いものを町のホームページから取る
+     （1秒に1件、User-Agent を名乗る。PDF などの形でない応答は置かない。失敗が続けて5件あれば止める）。
      URL の一致は、台帳などの URL（町の資料は archive_url も）との完全な一致で見る（# のあとは保つ。? のあとが付いたもの、
      ほかの URL の中にあるものは変えない）。
      手元に無いものがあれば、--allow-missing を付けないかぎり、件数と例を出して止まる。
@@ -45,6 +46,7 @@
 Python は標準ライブラリだけを使う。
 """
 import argparse
+import contextlib
 import csv
 import datetime
 import fnmatch
@@ -460,6 +462,7 @@ DOCS_LEDGER = "data/sources.tsv"
 DOCS_FORMATS = ("pdf", "xlsx")  # html の行は町のホームページの本文で、原典のファイルではないので入れない
 USER_AGENT = "hino-portal-bundle (+https://github.com/kken78/hino-portal)"
 FETCH_INTERVAL = 1.0  # 町のホームページから取るときの間（秒）
+FETCH_FAIL_LIMIT = 5  # 失敗がこの件数続いたら、残りを取りに行かずに止める
 # 種類（はじめにお読みください.txt と数字の順）
 KINDS = [("plan", "計画の原典"), ("doc", "町の資料"), ("bulletin", "議会だより"), ("photo", "議員の写真"),
          ("council", "会議録")]
@@ -603,39 +606,57 @@ def http_get(url, timeout=60):
         return res.read()
 
 
-def fetch_town_files(items, opener=http_get, sleep=time.sleep, log=print):
-    """置き場所に無いものを町のホームページから取る。1秒に1件。取ったものは置き場所に置く（取り直さない）。
-    404 は記録して続け、それ以外の失敗（断られた、つながらない）は、そこで止める（残りは取らない）。
-    返すもの：(取った, [(item, 理由)], 取らなかった)"""
-    todo = [it for it in items if not any(os.path.isfile(s) for s in it["srcs"])]
-    got, failed, rest = [], [], []
-    for n, it in enumerate(todo):
-        if n:
-            sleep(FETCH_INTERVAL)
-        try:
-            data = opener(it["url"])
-        except urllib.error.HTTPError as e:
-            failed.append((it, f"HTTP {e.code}"))
-            if e.code == 404:
-                continue
-            rest = todo[n + 1:]
-            break
-        except Exception as e:  # つながらない・時間切れなど
-            failed.append((it, str(e).splitlines()[0] if str(e) else type(e).__name__))
-            rest = todo[n + 1:]
-            break
-        why = magic_problem(it["srcs"][0], data)
-        if why:
-            failed.append((it, why))
-            continue
-        dst = it["srcs"][0]
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        tmp = dst + ".part"
+def write_atomic(dst, data):
+    """一時の名前（<dst>.part）で書いてから名前を変える。途中で失敗したら一時のファイルを消す"""
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    tmp = dst + ".part"
+    try:
         with open(tmp, "wb") as f:
             f.write(data)
         os.replace(tmp, dst)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(tmp)
+        raise
+
+
+def fetch_files(items, opener=http_get, sleep=time.sleep, log=print, fail_limit=FETCH_FAIL_LIMIT):
+    """読み込み元・置き場所（item の srcs）に無いものを町のホームページから取り、srcs[0] に置く。
+    会議録の PDF、議会だより、議員の写真に使う。1秒に1件。すでにあるものは取り直さない。
+    中身が拡張子の形でないもの（HTML のエラーのページなど）は置かずに失敗とする。
+    404 と中身の形の誤りは記録して続ける。それ以外の失敗（断られた、つながらない）か、
+    失敗が fail_limit 件続いたときは、そこで止める（残りは取らない）。
+    返すもの：(取った, [(item, 理由)], 取らなかった)"""
+    todo = [it for it in items if not any(os.path.isfile(s) for s in it["srcs"])]
+    got, failed, rest = [], [], []
+    streak = 0
+    for n, it in enumerate(todo):
+        if n:
+            sleep(FETCH_INTERVAL)
+        head = f"  [{n + 1}/{len(todo)}]"
+        stop = False
+        try:
+            data = opener(it["url"])
+        except urllib.error.HTTPError as e:
+            why, stop = f"HTTP {e.code}", e.code != 404
+        except Exception as e:  # つながらない・時間切れなど
+            why, stop = (str(e).splitlines()[0] if str(e) else type(e).__name__), True
+        else:
+            why = magic_problem(it["srcs"][0], data)
+        if why:
+            failed.append((it, why))
+            streak += 1
+            log(f"{head} 取れなかった：{it['url']}：{why}")
+            if stop or streak >= fail_limit:
+                rest = todo[n + 1:]
+                if not stop:
+                    log(f"  失敗が {streak} 件続いたので止めます。")
+                break
+            continue
+        streak = 0
+        write_atomic(it["srcs"][0], data)
         got.append(it)
-        log(f"  取った：{it['url']}")
+        log(f"{head} 取った：{it['url']}")
     return got, failed, rest
 
 
@@ -1163,8 +1184,8 @@ def build(args):
     docs_raw = os.path.abspath(args.docs_raw or os.path.join(docs_repo, "sources_raw"))
     council_pdf = os.path.abspath(args.council_pdf or os.path.join(commit_of[COUNCIL_REPO][0], COUNCIL_PDF_DIR))
     town = town_file_items(bulletins, photos, dests[GIKAI_REPO], town_dir)
-    genten = (plan_items(plan_rows, plans_raw) + doc_items(doc_rows, docs_raw)
-              + council_items(council_meta, dests[COUNCIL_REPO], council_pdf) + town)
+    council = council_items(council_meta, dests[COUNCIL_REPO], council_pdf)
+    genten = plan_items(plan_rows, plans_raw) + doc_items(doc_rows, docs_raw) + council + town
     check_items(genten)
     for it in genten:
         if it["dest"] in bundle:
@@ -1176,11 +1197,14 @@ def build(args):
     print(f"  議会だより・議員の写真：{town_dir}")
 
     if args.fetch:
-        print(f"町のホームページから取る（置き場所に無いもの。{FETCH_INTERVAL:g} 秒に1件）：")
-        got, failed, rest = fetch_town_files(town)
+        print(f"町のホームページから取る（会議録の PDF・議会だより・議員の写真のうち、読み込み元・置き場所に無いもの。"
+              f"{FETCH_INTERVAL:g} 秒に1件）：")
+        got, failed, rest = fetch_files(town + council)
         print(f"  取ったもの {len(got)} 件、取れなかったもの {len(failed)} 件、取らなかったもの {len(rest)} 件")
-        for it, why in failed:
+        for it, why in failed[:10]:
             print(f"    - {it['url']}：{why}")
+        if len(failed) > 10:
+            print(f"    ほか {len(failed) - 10} 件")
         if rest:
             print("    取れなかったところで止めたので、残りは取っていません。時間をおいてもう一度動かすと、続きから取ります。")
 
@@ -1192,7 +1216,8 @@ def build(args):
     if missing:
         print_items("手元に無いもの：", [(it, "") for it in missing])
         if not args.allow_missing:
-            hint = "（議会だよりと議員の写真は --fetch で取れます）" if any(it["kind"] in ("bulletin", "photo") for it in missing) else ""
+            hint = ("（会議録の PDF と議会だより・議員の写真は --fetch で取れます）"
+                    if any(it["kind"] in ("council", "bulletin", "photo") for it in missing) else "")
             raise BundleError(f"手元に無いものが {len(missing)} 件あります{hint}。無いものを飛ばして作るときは --allow-missing を付けてください")
     for name, root, kinds in ((KIND_NAME["plan"], plans_raw, ("plan",)), (KIND_NAME["doc"], docs_raw, ("doc",)),
                               (KIND_NAME["council"], council_pdf, ("council",)),
@@ -1471,7 +1496,7 @@ def main(argv=None):
                                           "scripts/fetch-pdfs.mjs の置き方）")
     ap.add_argument("--town-files", help="議会だよりと議員の写真の置き場所（リポジトリの外。既定は <src>/temoto-town-files）")
     ap.add_argument("--fetch", action="store_true",
-                    help="議会だよりと議員の写真のうち、置き場所に無いものを町のホームページから取る（1秒に1件）")
+                    help="会議録の PDF と議会だより・議員の写真のうち、読み込み元・置き場所に無いものを町のホームページから取る（1秒に1件）")
     ap.add_argument("--allow-missing", action="store_true",
                     help="手元に無い原典・会議録・議会だより・写真を飛ばして作る（付けないときは、無いものがあれば止まる）")
     ap.add_argument("--on-mismatch", choices=("stop", "skip"), default="stop",
